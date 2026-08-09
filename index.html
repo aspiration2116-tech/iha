@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ライフハック雑学 リサーチ</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --text:#1b1f24; --muted:#6b7280;
+    --accent:#d92d20; --accent-soft:#fdeceb; --good:#0f7b47; --good-soft:#e7f5ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;}
+  header{background:#fff;border-bottom:1px solid var(--line);padding:14px 20px;
+    display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:10;flex-wrap:wrap}
+  h1{font-size:17px;margin:0;font-weight:700}
+  .meta{color:var(--muted);font-size:12px}
+  button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;
+    padding:7px 13px;cursor:pointer}
+  button:hover{background:#f0f2f5}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{opacity:.9}
+  nav{display:flex;gap:6px;padding:12px 20px 0;flex-wrap:wrap}
+  nav a{padding:8px 14px;border-radius:8px 8px 0 0;cursor:pointer;font-size:14px;
+    border:1px solid transparent;color:var(--muted)}
+  nav a.on{background:#fff;border-color:var(--line);border-bottom-color:#fff;color:var(--text);font-weight:600}
+  main{padding:0 20px 60px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:0 10px 10px 10px;padding:18px}
+  .lead{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.7}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;background:#fff}
+  td.num,th.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  tr:hover td{background:#fafbfc}
+  a{color:inherit;text-decoration:none}
+  a.t:hover{text-decoration:underline}
+  .badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:999px;
+    background:#eef1f4;color:var(--muted);margin-left:6px;white-space:nowrap}
+  .badge.hot{background:var(--accent-soft);color:var(--accent);font-weight:700}
+  .badge.new{background:var(--good-soft);color:var(--good);font-weight:700}
+  .card{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .card img{width:150px;height:84px;object-fit:cover;border-radius:6px;background:#eee;flex:none}
+  .card .body{flex:1;min-width:0}
+  .card .ttl{font-weight:600;font-size:14.5px;line-height:1.5;margin-bottom:5px}
+  .card .sub{color:var(--muted);font-size:12.5px;line-height:1.8}
+  .kw{display:inline-block;background:#fff5f4;color:var(--accent);border:1px solid #f7d5d2;
+    border-radius:6px;padding:1px 8px;font-size:12px;margin:3px 5px 0 0}
+  .rank{font-size:20px;font-weight:800;color:#c9ced4;width:34px;flex:none;text-align:right}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .stat{border:1px solid var(--line);border-radius:8px;padding:12px}
+  .stat .k{font-size:12px;color:var(--muted)}
+  .stat .v{font-size:22px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+  .bar{height:6px;background:#eef1f4;border-radius:3px;overflow:hidden;margin-top:4px}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .muteBtn{font-size:11px;padding:2px 8px;color:var(--muted)}
+  .empty{color:var(--muted);padding:40px 0;text-align:center}
+  .chips{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-size:13px;
+    cursor:pointer;background:#fff;color:var(--muted)}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .act{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+  .act button{font-size:11.5px;padding:3px 9px;border-radius:6px}
+  .act button.main{border-color:#c9ced4;font-weight:600}
+  #overlay{position:fixed;inset:0;background:rgba(15,18,22,.45);z-index:50;display:none;
+    align-items:flex-start;justify-content:center;padding:4vh 16px;overflow:auto}
+  #overlay.show{display:flex}
+  #modal{background:#fff;border-radius:12px;max-width:860px;width:100%;padding:22px;
+    box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  #modal h2{font-size:16px;margin:0 0 4px;line-height:1.5}
+  #modal .sub{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+  #modal h3{font-size:13.5px;margin:18px 0 8px}
+  .spark{width:100%;height:120px;background:#fafbfc;border:1px solid var(--line);border-radius:8px}
+  .tag{display:inline-block;background:#eef1f4;border-radius:6px;padding:2px 9px;
+    font-size:12px;margin:0 5px 5px 0}
+  #modal textarea{width:100%;height:180px;font:12.5px/1.7 inherit;border:1px solid var(--line);
+    border-radius:8px;padding:10px;resize:vertical;color:var(--text)}
+  #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:99;
+    background:#1b1f24;color:#fff;padding:10px 20px;border-radius:8px;font-size:13.5px;
+    opacity:0;transition:opacity .25s;pointer-events:none}
+  #toast.show{opacity:1}
+  .navBadge{display:inline-block;background:var(--accent);color:#fff;font-size:11px;
+    font-weight:700;border-radius:999px;padding:1px 7px;vertical-align:2px}
+  .favBtn{font-size:16px;padding:2px 8px;border:none;background:none;cursor:pointer;
+    color:#c9ced4}
+  .favBtn.on{color:#f5a623}
+  .memoCard{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  .memoCard input{width:100%;font:600 15px/1.5 inherit;border:none;outline:none;
+    color:var(--text);margin-bottom:8px;background:transparent}
+  .memoCard textarea{width:100%;min-height:120px;font:13px/1.8 inherit;border:1px solid var(--line);
+    border-radius:8px;padding:10px;resize:vertical;color:var(--text)}
+  .memoCard .foot{display:flex;gap:6px;margin-top:8px;align-items:center}
+  .memoCard .foot .when{color:var(--muted);font-size:11.5px;margin-left:auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>ライフハック雑学 リサーチ</h1>
+  <span class="meta" id="meta">読み込み中…</span>
+  <span style="flex:1"></span>
+  <button id="btnQuick">検索だけ更新</button>
+  <button class="primary" id="btnRun">今すぐ収集</button>
+  <button onclick="location.reload()">再読込</button>
+</header>
+<nav id="nav"></nav>
+<main><div class="panel" id="panel"><div class="empty">読み込み中…</div></div></main>
+
+<div id="overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+const TABS = [
+  ["opp",   "作るべきネタ"],
+  ["hot",   "伸びている動画"],
+  ["srch",  "YouTube検索"],
+  ["web",   "SNS・記事"],
+  ["new",   "新着"],
+  ["memo",  "台本メモ"],
+  ["pat",   "タイトルの型"],
+  ["topic", "キーワード"],
+  ["ch",    "チャンネル"],
+  ["self",  "自分の成績"],
+];
+let DATA = null, MEMOS = null, newCount = 0;
+let tab = localStorage.getItem("ytr_tab") || "opp";
+
+const v = n => n==null ? "-" : (n>=10000 ? (n/10000).toFixed(1)+"万" : Math.round(n).toLocaleString());
+const esc = s => (s||"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const days = d => d==null ? "-" : (d < 1 ? Math.round(d*24)+"時間" : d.toFixed(d<10?1:0)+"日");
+
+function renderNav(){
+  document.getElementById("nav").innerHTML = TABS.map(([k,l]) => {
+    const badge = (k==="new" && newCount>0) ? ` <span class="navBadge">${newCount}</span>` : "";
+    return `<a class="${k===tab?'on':''}" onclick="go('${k}')">${l}${badge}</a>`;
+  }).join("");
+}
+function go(k){
+  tab=k; localStorage.setItem("ytr_tab",k);
+  if(k==="new") localStorage.setItem("ytr_new_seen", new Date().toISOString());
+  renderNav(); render();
+}
+
+function mult(m){
+  if(m==null || m<0.05) return "";
+  const cls = m>=2 ? "badge hot" : (m>=1.3 ? "badge new" : "badge");
+  return `<span class="${cls}">平均比 ${m}x</span>`;
+}
+
+function render(){
+  const p = document.getElementById("panel");
+  if(!DATA){ p.innerHTML='<div class="empty">読み込み中…</div>'; return; }
+  p.innerHTML = ({opp:vOpp, hot:vHot, srch:vSrch, web:vWeb, new:vNew, memo:vMemo,
+                  pat:vPat, topic:vTopic, ch:vCh, self:vSelf})[tab]();
+  if(tab==="memo") loadMemos();
+  if(tab==="srch") renderSearchResults();
+  if(tab==="web") renderWebResults();
+}
+
+const VMAP = {};
+function actions(r){
+  VMAP[r.video_id] = {title: r.title, url: r.url};
+  return `<div class="act">
+    <button class="main" onclick="openDetail('${r.video_id}')">分析</button>
+    <button onclick="copyTitle('${r.video_id}')">タイトル</button>
+    <button onclick="copyThumb('${r.video_id}')">サムネ</button>
+    <button onclick="copyTranscript('${r.video_id}')">台本</button>
+    <button onclick="copyPack('${r.video_id}')">パック</button>
+    <button onclick="openAI('${r.video_id}','claude')">Claude</button>
+    <button onclick="openAI('${r.video_id}','gpt')">GPT</button>
+  </div>`;
+}
+
+function vOpp(){
+  const rows = DATA.opportunities || [];
+  if(!rows.length) return lead("競合が当てていて、自分のタイトルにまだ出てこないネタを並べます。")
+    + '<div class="empty">まだデータが足りません。「今すぐ収集」を押してください。</div>';
+  return lead("競合が当てていて、<b>自分のタイトルにまだ出ていない言葉</b>を含む動画。上から順に企画候補です。赤いタグが未使用キーワード。")
+   + rows.map((r,i)=>`
+    <div class="card">
+      <div class="rank">${i+1}</div>
+      <img loading="lazy" src="${r.thumb}" alt="">
+      <div class="body">
+        <div class="ttl"><a class="t" href="${r.url}" target="_blank">${esc(r.title)}</a>${mult(r.multiple)}</div>
+        <div class="sub">${esc(r.channel_title)}${r.channel_subs?`（登録 ${v(r.channel_subs)}）`:""}
+          ・${v(r.views)}回・${days(r.age_days)}前・時速 ${v(r.recent_vph ?? r.vph)}回</div>
+        <div>${(r.fresh_words||[]).map(w=>`<span class="kw">${esc(w)}</span>`).join("")}</div>
+        ${actions(r)}
+      </div>
+    </div>`).join("");
+}
+
+const HOT_PERIODS = [["1","24時間"],["3","3日"],["7","7日"],["30","30日"],["90","90日"]];
+let hotPeriod = localStorage.getItem("ytr_hot_period") || "7";
+
+function setHotPeriod(p){ hotPeriod=p; localStorage.setItem("ytr_hot_period",p); render(); }
+
+function vHot(){
+  const lim = parseFloat(hotPeriod);
+  const all = DATA.hot || [];
+  const rows = all.filter(r => r.age_days != null && r.age_days <= lim).slice(0, 60);
+  const chips = `<div class="chips">${HOT_PERIODS.map(([p,l]) =>
+    `<span class="chip ${p===hotPeriod?'on':''}" onclick="setHotPeriod('${p}')">${l}</span>`).join("")}</div>`;
+  return lead("指定期間に投稿された競合動画を「勢い(時速の実測)×そのチャンネルの平均に対する倍率」で並べたもの。登録者が少ないのに倍率が高いものほど、ネタ自体の力が強いと読めます。")
+   + chips
+   + (rows.length ? table(["#","","タイトル / 操作","チャンネル","再生","経過","倍率","時速"],
+      rows.map((r,i)=>[
+        `<td class="num">${i+1}</td>`,
+        `<td><img loading="lazy" src="${r.thumb}" style="width:104px;height:58px;object-fit:cover;border-radius:4px"></td>`,
+        `<td><a class="t" href="${r.url}" target="_blank">${esc(r.title)}</a>${actions(r)}</td>`,
+        `<td style="color:var(--muted)">${esc(r.channel_title)}</td>`,
+        `<td class="num">${v(r.views)}</td>`,
+        `<td class="num">${days(r.age_days)}</td>`,
+        `<td class="num">${r.multiple ?? "-"}</td>`,
+        `<td class="num">${v(r.recent_vph ?? r.vph)}</td>`,
+      ].join("")))
+     : `<div class="empty">この期間に投稿された動画はまだ記録にありません。「今すぐ収集」で最新を取り込んでください。</div>`);
+}
+
+/* ---------------- YouTube検索タブ ---------------- */
+let SRCH = {q: localStorage.getItem("ytr_srch_q") || "", period: localStorage.getItem("ytr_srch_p") || "month",
+            results: null, loading: false};
+
+const SRCH_PERIODS = [["today","今日"],["week","今週"],["month","今月"],["year","今年"],
+                      ["all","全期間"],["views","再生数順"],["recent","新着順"]];
+
+function vSrch(){
+  return lead("YouTubeを直接キーワード検索。結果の動画はそのまま分析・台本取得・AI台本化ができ、DBにも記録されます。")
+   + `<div class="act" style="margin-bottom:16px;gap:8px">
+        <input id="srchQ" value="${esc(SRCH.q)}" placeholder="例: エアコン 電気代 裏技"
+          style="flex:1;min-width:220px;font:14px/1.5 inherit;border:1px solid var(--line);border-radius:8px;padding:8px 12px"
+          onkeydown="if(event.key==='Enter')doSearch()">
+        <select id="srchP" style="font:13.5px inherit;border:1px solid var(--line);border-radius:8px;padding:8px">
+          ${SRCH_PERIODS.map(([k,l])=>`<option value="${k}" ${k===SRCH.period?'selected':''}>${l}</option>`).join("")}
+        </select>
+        <label style="font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:4px">
+          <input type="checkbox" id="srchNoShorts" checked onchange="renderSearchResults()">ショート除外</label>
+        <button class="main" onclick="doSearch()">検索</button>
+      </div>
+      <div id="srchResults"></div>`;
+}
+
+function renderSearchResults(){
+  const box = document.getElementById("srchResults");
+  if(!box) return;
+  if(SRCH.loading){ box.innerHTML = '<div class="empty">検索中…</div>'; return; }
+  if(SRCH.results === null){ box.innerHTML = '<div class="empty">キーワードを入れて検索してください</div>'; return; }
+  let rows = SRCH.results;
+  if(document.getElementById("srchNoShorts")?.checked)
+    rows = rows.filter(r => !r.duration_sec || r.duration_sec >= 75);
+  if(!rows.length){ box.innerHTML = '<div class="empty">結果がありませんでした</div>'; return; }
+  box.innerHTML = rows.map((r,i)=>`
+    <div class="card">
+      <div class="rank">${i+1}</div>
+      <img loading="lazy" src="${r.thumb}" alt="">
+      <div class="body">
+        <div class="ttl">
+          ${r.is_self?'<span class="badge hot">自分</span> ':''}${r.is_rival?'<span class="badge">追跡中</span> ':''}
+          <a class="t" href="${r.url}" target="_blank">${esc(r.title)}</a></div>
+        <div class="sub">${esc(r.channel_title)}・${v(r.views)}回${r.age_days!=null?`・${days(r.age_days)}前`:""}${r.duration_sec?`・${Math.floor(r.duration_sec/60)}分${r.duration_sec%60}秒`:""}</div>
+        ${actions(r)}
+      </div>
+    </div>`).join("");
+}
+
+async function doSearch(){
+  const q = document.getElementById("srchQ").value.trim();
+  const period = document.getElementById("srchP").value;
+  if(!q){ toast("キーワードを入れてください"); return; }
+  SRCH.q = q; SRCH.period = period; SRCH.loading = true;
+  localStorage.setItem("ytr_srch_q", q); localStorage.setItem("ytr_srch_p", period);
+  renderSearchResults();
+  try{
+    const d = await (await fetch(`/api/search?q=${encodeURIComponent(q)}&period=${period}`)).json();
+    SRCH.results = d.results || [];
+    toast(`${SRCH.results.length}件見つかりました`);
+  }catch(e){
+    SRCH.results = [];
+    toast("検索に失敗しました: "+e);
+  }
+  SRCH.loading = false;
+  renderSearchResults();
+}
+
+/* ---------------- SNS・記事検索タブ ---------------- */
+let WEB = {q: localStorage.getItem("ytr_web_q") || "", results: null, loading: false,
+           sources: JSON.parse(localStorage.getItem("ytr_web_src") || "null") ||
+                    ["x","ynews","gnews","hatena","note","blog","tiktok","instagram","threads"]};
+
+const WEB_SOURCES = [
+  ["x","X(Twitter)"], ["ynews","Yahoo!ニュース"], ["gnews","ニュース記事"], ["hatena","はてブ"],
+  ["note","note"], ["blog","ブログ・記事"], ["tiktok","TikTok"], ["instagram","Instagram"], ["threads","Threads"],
+];
+const WEB_PRESETS = ["ライフハック", "生活の知恵 裏技", "掃除 裏技", "節約 術", "雑学 面白い",
+                     "暑さ対策", "虫除け 対策", "100均 便利"];
+
+function vWeb(){
+  return lead("X・ニュース・はてブ・ブログ・TikTok・Instagram・Threads を横断検索して、YouTube以外で話題のライフハックネタを拾います。")
+   + `<div class="act" style="margin-bottom:8px;gap:8px">
+        <input id="webQ" value="${esc(WEB.q)}" placeholder="例: 生活の知恵 裏技"
+          style="flex:1;min-width:220px;font:14px/1.5 inherit;border:1px solid var(--line);border-radius:8px;padding:8px 12px"
+          onkeydown="if(event.key==='Enter')doWebSearch()">
+        <button class="main" onclick="doWebSearch()">横断検索</button>
+      </div>
+      <div style="margin-bottom:8px">${WEB_PRESETS.map(p=>
+        `<span class="kw" style="cursor:pointer" onclick="document.getElementById('webQ').value='${p}';doWebSearch()">${p}</span>`).join("")}</div>
+      <div style="margin-bottom:14px">${WEB_SOURCES.map(([k,l])=>
+        `<label style="font-size:12.5px;color:var(--muted);margin-right:12px;white-space:nowrap">
+          <input type="checkbox" ${WEB.sources.includes(k)?'checked':''} onchange="toggleWebSrc('${k}',this.checked)"> ${l}</label>`).join("")}</div>
+      <div class="act" style="margin-bottom:14px">
+        <button onclick="copyWebResults()">結果を全部コピー</button>
+        <button onclick="webAI('claude')">Claudeでネタ出し</button>
+        <button onclick="webAI('gpt')">GPTでネタ出し</button>
+      </div>
+      <div id="webResults"></div>`;
+}
+
+function toggleWebSrc(k, on){
+  WEB.sources = on ? [...new Set([...WEB.sources, k])] : WEB.sources.filter(s=>s!==k);
+  localStorage.setItem("ytr_web_src", JSON.stringify(WEB.sources));
+}
+
+function renderWebResults(){
+  const box = document.getElementById("webResults");
+  if(!box) return;
+  if(WEB.loading){ box.innerHTML = '<div class="empty">横断検索中… 5〜10秒かかります</div>'; return; }
+  if(WEB.results === null){ box.innerHTML = '<div class="empty">キーワードを入れて検索してください</div>'; return; }
+  const keys = Object.keys(WEB.results);
+  if(!keys.length){ box.innerHTML = '<div class="empty">結果がありませんでした</div>'; return; }
+  box.innerHTML = keys.map(k=>{
+    const d = WEB.results[k];
+    const items = d.items || [];
+    return `<h3 style="font-size:14px;margin:20px 0 8px">${esc(d.label)}
+        <span class="badge">${items.length}件</span>${d.error?` <span class="badge hot">取得失敗</span>`:""}</h3>`
+      + (items.length ? items.map(it=>`
+        <div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;gap:10px">
+          ${it.thumb?`<img loading="lazy" src="/api/webthumb?u=${encodeURIComponent(it.thumb)}" style="width:86px;height:60px;object-fit:cover;border-radius:6px;flex:none" onerror="this.style.display='none'">`:""}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13.5px;line-height:1.6"><a class="t" href="${it.url}" target="_blank">${esc(it.title)}</a></div>
+            <div class="sub" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <span>${esc(it.author||"")}${it.date?`・${new Date(it.date).toLocaleDateString("ja-JP")}`:""}</span>
+              ${it.snippet?`<span style="color:var(--muted)">${esc(it.snippet)}</span>`:""}
+              <button class="muteBtn" onclick='webCopy(${JSON.stringify(it.title)},${JSON.stringify(it.url)})'>コピー</button>
+              <button class="muteBtn" onclick='webMemo(${JSON.stringify(it.title)},${JSON.stringify(it.url)})'>メモ</button>
+            </div>
+          </div>
+        </div>`).join("") : '<div class="sub">なし</div>');
+  }).join("");
+}
+
+async function doWebSearch(){
+  const q = document.getElementById("webQ").value.trim();
+  if(!q){ toast("キーワードを入れてください"); return; }
+  if(!WEB.sources.length){ toast("ソースを1つ以上選んでください"); return; }
+  WEB.q = q; WEB.loading = true;
+  localStorage.setItem("ytr_web_q", q);
+  renderWebResults();
+  try{
+    const d = await (await fetch(`/api/websearch?q=${encodeURIComponent(q)}&sources=${WEB.sources.join(",")}`)).json();
+    WEB.results = d.results || {};
+    const n = Object.values(WEB.results).reduce((a,s)=>a+(s.items||[]).length,0);
+    toast(`${n}件見つかりました`);
+  }catch(e){ WEB.results = {}; toast("検索に失敗しました: "+e); }
+  WEB.loading = false;
+  renderWebResults();
+}
+
+function webResultsText(){
+  const L = [`「${WEB.q}」のSNS・ニュース・記事の横断検索結果`];
+  for(const k of Object.keys(WEB.results||{})){
+    const d = WEB.results[k];
+    if(!(d.items||[]).length) continue;
+    L.push("", "■ "+d.label);
+    d.items.forEach(it=>L.push(`・${it.title}${it.author?` (${it.author})`:""} ${it.url}`));
+  }
+  return L.join("\n");
+}
+
+async function copyWebResults(){
+  if(!WEB.results){ toast("先に検索してください"); return; }
+  const text = webResultsText();
+  const ok = await writeClip(text);
+  if(ok) toast("検索結果を全部コピーしました"); else showCopyFallback(text, "横断検索結果");
+}
+
+async function webAI(target){
+  if(!WEB.results){ toast("先に検索してください"); return; }
+  const prompt = `あなたはYouTube「ライフハック雑学」チャンネルの企画担当です。以下のSNS・ニュース・記事の横断検索結果を分析して、いま需要がありそうな動画ネタを10個、YouTube向けのタイトル案つきで提案してください。SNSで反応が大きい話題を優先してください。\n\n` + webResultsText();
+  await openAIWithText(prompt, target);
+}
+
+async function webCopy(title, url){
+  const ok = await writeClip(title+"\n"+url);
+  if(ok) toast("コピーしました"); else showCopyFallback(title+"\n"+url, "リンク");
+}
+
+async function webMemo(title, url){
+  await fetch("/api/memo", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({title: "【ネタ】"+title.slice(0,60), body: title+"\n"+url})});
+  toast("台本メモに保存しました");
+}
+
+function vNew(){
+  const rows = DATA.new_videos || [];
+  const anyFav = (DATA.channels||[]).some(c=>c.is_favorite);
+  if(!anyFav) return lead("お気に入りチャンネルの新着がここに並びます。")
+    + '<div class="empty">まだお気に入りがありません。「チャンネル」タブで★を押して登録してください。</div>';
+  if(!rows.length) return lead("お気に入りチャンネルの新着(直近21日)。")
+    + '<div class="empty">直近21日の新着はありません。収集は6時間ごとに自動で走ります。</div>';
+  return lead("お気に入りチャンネルの新着(投稿が新しい順)。<b>NEW</b> は前回このタブを見たあとに見つかった動画。新着はMacの通知にも出ます。")
+   + rows.map(r=>`
+    <div class="card">
+      <img loading="lazy" src="${r.thumb}" alt="">
+      <div class="body">
+        <div class="ttl">${r._isNew?'<span class="badge hot">NEW</span> ':''}<a class="t" href="${r.url}" target="_blank">${esc(r.title)}</a>${mult(r.multiple)}</div>
+        <div class="sub">${esc(r.channel_title)}・${v(r.views)}回・${days(r.age_days)}前・時速 ${v(r.recent_vph ?? r.vph)}回</div>
+        ${actions(r)}
+      </div>
+    </div>`).join("");
+}
+
+function vMemo(){
+  return lead("台本作成用のメモ。動画の「分析」からリサーチパックを保存するか、ここで自由に書けます。自動保存されます。")
+   + `<div class="act" style="margin-bottom:14px"><button class="main" onclick="newMemo()">＋ 新規メモ</button></div>
+      <div id="memoList"><div class="empty">読み込み中…</div></div>`;
+}
+
+async function loadMemos(){
+  const r = await fetch("/api/memos");
+  MEMOS = (await r.json()).memos || [];
+  const box = document.getElementById("memoList");
+  if(!box) return;
+  if(!MEMOS.length){ box.innerHTML = '<div class="empty">メモはまだありません</div>'; return; }
+  box.innerHTML = MEMOS.map(m=>`
+    <div class="memoCard" id="memo-${m.id}">
+      <input value="${esc(m.title)}" placeholder="タイトル" oninput="memoChanged(${m.id})">
+      <textarea placeholder="本文" oninput="memoChanged(${m.id})">${esc(m.body)}</textarea>
+      <div class="foot">
+        <button onclick="copyMemo(${m.id})">コピー</button>
+        <button onclick="aiMemo(${m.id},'claude')">Claude</button>
+        <button onclick="aiMemo(${m.id},'gpt')">GPT</button>
+        <button onclick="delMemo(${m.id})" style="color:var(--accent)">削除</button>
+        <span class="when" id="memoWhen-${m.id}">${new Date(m.updated_at).toLocaleString("ja-JP")}</span>
+      </div>
+    </div>`).join("");
+}
+
+const memoTimers = {};
+function memoVals(id){
+  const el = document.getElementById("memo-"+id);
+  return {id, title: el.querySelector("input").value, body: el.querySelector("textarea").value};
+}
+function memoChanged(id){
+  clearTimeout(memoTimers[id]);
+  memoTimers[id] = setTimeout(async ()=>{
+    await fetch("/api/memo", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(memoVals(id))});
+    const w = document.getElementById("memoWhen-"+id);
+    if(w) w.textContent = "保存しました " + new Date().toLocaleTimeString("ja-JP");
+  }, 800);
+}
+async function newMemo(){
+  await fetch("/api/memo", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({title:"", body:""})});
+  loadMemos();
+}
+async function delMemo(id){
+  if(!confirm("このメモを削除しますか？")) return;
+  await fetch("/api/memo/delete?id="+id);
+  loadMemos();
+}
+async function copyMemo(id){
+  const m = memoVals(id);
+  const text = (m.title? m.title+"\n\n" : "") + m.body;
+  const ok = await writeClip(text);
+  if(ok) toast("メモをコピーしました"); else showCopyFallback(text, "メモ");
+}
+async function aiMemo(id, target){
+  const m = memoVals(id);
+  const text = (m.title? m.title+"\n\n" : "") + m.body;
+  await openAIWithText(text, target);
+}
+
+function vPat(){
+  const rows = DATA.patterns || [];
+  const max = Math.max(1, ...rows.map(r=>r.median_views));
+  return lead("同ジャンルのタイトルを型で分類し、その型の<b>再生数の中央値</b>を出したもの。「全体比」が 1.0 を超える型ほど当たりやすい型です。平均でなく中央値なので、まぐれ1本に引っ張られません。")
+   + table(["型","本数","中央値","全体比","","代表例"],
+      rows.map(r=>[
+        `<td><b>${esc(r.name)}</b></td>`,
+        `<td class="num">${r.count}</td>`,
+        `<td class="num">${v(r.median_views)}</td>`,
+        `<td class="num">${r.index.toFixed(2)}</td>`,
+        `<td style="width:120px"><div class="bar"><i style="width:${Math.round(100*r.median_views/max)}%"></i></div></td>`,
+        `<td style="color:var(--muted)"><a class="t" href="${r.best_url}" target="_blank">${esc(r.best_title)}</a></td>`,
+      ].join("")))
+   + `<h3 style="font-size:14px;margin:26px 0 8px">【】の中に入れられている言葉</h3>`
+   + `<div>${(DATA.brackets||[]).map(b=>`<span class="kw">${esc(b.word)} <b>${b.count}</b>（中央値${v(b.median_views)}）</span>`).join("")}</div>`;
+}
+
+function vTopic(){
+  const rows = DATA.topics || [];
+  return lead("競合のタイトルから抽出した語を、その語を含む動画の再生数中央値で並べたもの。<b>★は自分のタイトルにまだ一度も出てきていない語</b>です。")
+   + table(["語","","本数","中央値","最高","代表動画"],
+      rows.map(r=>[
+        `<td><b>${esc(r.word)}</b></td>`,
+        `<td>${r.self_used ? "" : '<span class="badge new">未使用</span>'}</td>`,
+        `<td class="num">${r.count}</td>`,
+        `<td class="num">${v(r.median_views)}</td>`,
+        `<td class="num">${v(r.max_views)}</td>`,
+        `<td style="color:var(--muted)"><a class="t" href="${r.best_url}" target="_blank">${esc(r.best_title)}</a></td>`,
+      ].join("")));
+}
+
+function vCh(){
+  const rows = DATA.channels || [];
+  return lead("追跡中のチャンネル。<b>★でお気に入り登録</b>すると新着が「新着」タブとMac通知に出ます。関係ないチャンネルは「除外」を押すと以後集めません。")
+   + table(["★","チャンネル","登録者","本数","中央値","最高","30日の投稿",""],
+      rows.map(r=>[
+        `<td>${r.is_self?"":`<button class="favBtn ${r.is_favorite?'on':''}" title="お気に入り"
+            onclick="fav('${r.channel_id}',${r.is_favorite?0:1})">${r.is_favorite?"★":"☆"}</button>`}</td>`,
+        `<td>${r.is_self?'<span class="badge hot">自分</span> ':''}<a class="t" href="${r.url}" target="_blank">${esc(r.title)}</a></td>`,
+        `<td class="num">${v(r.subs)}</td>`,
+        `<td class="num">${r.videos}</td>`,
+        `<td class="num">${v(r.median_views)}</td>`,
+        `<td class="num">${v(r.max_views)}</td>`,
+        `<td class="num">${r.posts_30d}</td>`,
+        `<td class="num">${r.is_self?"":`<button class="muteBtn" onclick="mute('${r.channel_id}')">除外</button>`}</td>`,
+      ].join("")));
+}
+
+function vSelf(){
+  const s = DATA.self || {};
+  const ratio = s.rival_median_90d ? (s.median_views/s.rival_median_90d) : null;
+  let h = lead("自分の動画と、同ジャンル全体との比較。")
+   + `<div class="grid">
+      ${stat("記録している自分の動画", s.count+"本")}
+      ${stat("自分の中央値", v(s.median_views)+"回")}
+      ${stat("同ジャンル中央値(90日)", v(s.rival_median_90d)+"回")}
+      ${stat("ジャンル比", ratio? ratio.toFixed(2)+"x" : "-")}
+     </div>`;
+  if(s.best) h += `<p class="lead" style="margin-top:16px">ベスト: <a class="t" href="${s.best.url}" target="_blank"><b>${esc(s.best.title)}</b></a> ${v(s.best.views)}回<br>
+     ワースト: <a class="t" href="${s.worst.url}" target="_blank">${esc(s.worst.title)}</a> ${v(s.worst.views)}回</p>`;
+  h += table(["","タイトル","再生","経過","時速","自分の平均比"],
+      (s.latest||[]).map(r=>[
+        `<td><img src="${r.thumb}" style="width:104px;height:58px;object-fit:cover;border-radius:4px"></td>`,
+        `<td><a class="t" href="${r.url}" target="_blank">${esc(r.title)}</a></td>`,
+        `<td class="num">${v(r.views)}</td>`,
+        `<td class="num">${days(r.age_days)}</td>`,
+        `<td class="num">${v(r.recent_vph ?? r.vph)}</td>`,
+        `<td class="num">${r.multiple ?? "-"}</td>`,
+      ].join("")));
+  return h;
+}
+
+const lead = t => `<p class="lead">${t}</p>`;
+const stat = (k,val) => `<div class="stat"><div class="k">${k}</div><div class="v">${val}</div></div>`;
+function table(head, rows){
+  if(!rows.length) return '<div class="empty">データがありません</div>';
+  return `<div style="overflow-x:auto"><table><thead><tr>${head.map(h=>`<th class="${/再生|本数|中央値|最高|経過|倍率|時速|登録者|投稿|#/.test(h)?'num':''}">${h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${r}</tr>`).join("")}</tbody></table></div>`;
+}
+
+async function mute(cid){
+  await fetch("/api/mute?channel_id="+cid);
+  load();
+}
+
+/* ---------------- コピー機能 ---------------- */
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+async function writeClip(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch(e){
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }
+}
+
+function showCopyFallback(text, label){
+  // クリップボードが使えない環境用: 選択済みで表示して Cmd+C してもらう
+  const ov = document.getElementById("overlay"), md = document.getElementById("modal");
+  ov.classList.add("show");
+  md.innerHTML = `<h2>${esc(label||"コピー")}</h2>
+    <div class="sub">自動コピーが使えない環境です。下のテキストは選択済みなので、そのまま <b>Cmd+C</b> を押してください。</div>
+    <textarea id="fbText" readonly style="height:260px"></textarea>
+    <div style="text-align:right;margin-top:12px"><button onclick="closeModal()">閉じる</button></div>`;
+  const ta = document.getElementById("fbText");
+  ta.value = text;
+  ta.focus(); ta.select();
+}
+
+async function copyTitle(vid){
+  const t = VMAP[vid]?.title || "";
+  const ok = await writeClip(t);
+  if(ok) toast("タイトルをコピーしました");
+  else showCopyFallback(t, "タイトル");
+}
+
+async function copyThumb(vid){
+  toast("サムネ画像を取得中…");
+  try{
+    const res = await fetch("/api/thumb?video_id="+vid);
+    if(!res.ok) throw 0;
+    const blob = await res.blob();
+    const bmp = await createImageBitmap(blob);
+    const cv = document.createElement("canvas");
+    cv.width = bmp.width; cv.height = bmp.height;
+    cv.getContext("2d").drawImage(bmp, 0, 0);
+    const png = await new Promise(r => cv.toBlob(r, "image/png"));
+    await navigator.clipboard.write([new ClipboardItem({"image/png": png})]);
+    toast("サムネ画像をコピーしました（そのまま貼り付けできます）");
+  }catch(e){
+    await writeClip(`https://i.ytimg.com/vi/${vid}/maxresdefault.jpg`);
+    toast("画像コピーに失敗したのでURLをコピーしました");
+  }
+}
+
+async function fetchTranscript(vid){
+  const res = await fetch("/api/transcript?video_id="+vid);
+  return await res.json();
+}
+
+async function copyTranscript(vid){
+  toast("台本(字幕)を取得中… 初回は10秒ほどかかります");
+  try{
+    const d = await fetchTranscript(vid);
+    if(!d.text){ toast(d.error || "この動画には字幕がありません"); return; }
+    const ok = await writeClip(d.text);
+    if(ok) toast(`台本をコピーしました（${d.text.length.toLocaleString()}字 / ${d.kind==="asr"?"自動生成字幕":"手動字幕"}）`);
+    else showCopyFallback(d.text, "台本");
+  }catch(e){ toast("取得に失敗しました: "+e); }
+}
+
+async function copyPack(vid){
+  toast("リサーチパック作成中… 初回は台本とコメントの取得で20秒ほどかかります");
+  try{
+    const d = await (await fetch(`/api/pack?video_id=${vid}`)).json();
+    if(!d.text){ toast(d.error || "作成に失敗しました"); return; }
+    const ok = await writeClip(d.text);
+    if(ok) toast(`リサーチパックをコピーしました（${d.text.length.toLocaleString()}字: 台本+コメント要約+類似動画）`);
+    else showCopyFallback(d.text, "リサーチパック");
+  }catch(e){ toast("作成に失敗しました: "+e); }
+}
+
+const AI_URL = {claude: "https://claude.ai/new", gpt: "https://chatgpt.com/"};
+const AI_NAME = {claude: "Claude", gpt: "ChatGPT"};
+
+async function openAIWithText(text, target){
+  // 短ければ入力欄に直接プレフィル、長ければコピーして貼ってもらう
+  if(text.length < 3200){
+    window.open(AI_URL[target] + "?q=" + encodeURIComponent(text), "_blank");
+    toast(`${AI_NAME[target]}の入力欄に入れて開きました`);
+    return;
+  }
+  const ok = await writeClip(text);
+  window.open(AI_URL[target], "_blank");
+  if(ok) toast(`コピーして${AI_NAME[target]}を開きました。入力欄に貼り付け(Cmd+V)て送信してください`);
+  else showCopyFallback(text, AI_NAME[target]+"に貼り付ける内容");
+}
+
+async function openAI(vid, target){
+  toast("分析パック作成中… 初回は台本とコメントの取得で20秒ほどかかります");
+  try{
+    const d = await (await fetch(`/api/pack?video_id=${vid}&mode=prefill`)).json();
+    if(!d.text){ toast(d.error || "作成に失敗しました"); return; }
+    if(d.truncated && d.clip) await writeClip(d.clip);
+    window.open(AI_URL[target] + "?q=" + encodeURIComponent(d.text), "_blank");
+    if(d.truncated){
+      toast(`${AI_NAME[target]}の入力欄に分析+コメント+類似動画+台本抜粋を入れました。台本の全文はコピー済み — 送信後に貼り付けてください`);
+    }else{
+      toast(`${AI_NAME[target]}の入力欄に分析資料一式を入れて開きました。そのまま送信してください`);
+    }
+  }catch(e){ toast("作成に失敗しました: "+e); }
+}
+
+async function saveAsMemo(vid){
+  toast("リサーチパックをメモに保存中…");
+  try{
+    const d = await (await fetch(`/api/pack?video_id=${vid}`)).json();
+    await fetch("/api/memo", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({title: "【台本案】"+(VMAP[vid]?.title||""), body: d.text, video_id: vid})});
+    toast("台本メモに保存しました");
+  }catch(e){ toast("保存に失敗しました"); }
+}
+
+async function fav(cid, on){
+  await fetch(`/api/fav?channel_id=${cid}&on=${on}`);
+  toast(on ? "お気に入りに追加しました。新着が「新着」タブとMac通知に出ます" : "お気に入りを解除しました");
+  load();
+}
+
+/* ---------------- 分析モーダル ---------------- */
+function closeModal(){ document.getElementById("overlay").classList.remove("show"); }
+document.addEventListener("keydown", e => { if(e.key==="Escape") closeModal(); });
+
+function sparkline(snaps){
+  const pts = (snaps||[]).filter(s=>s.views!=null);
+  if(pts.length < 2) return '<div class="sub">まだ計測点が足りません（収集のたびに増えます）</div>';
+  const W=780, H=110, P=8;
+  const t0 = new Date(pts[0].ts).getTime(), t1 = new Date(pts[pts.length-1].ts).getTime();
+  const v0 = Math.min(...pts.map(p=>p.views)), v1 = Math.max(...pts.map(p=>p.views));
+  const X = t => P + (W-2*P) * (t1===t0 ? 0.5 : (t-t0)/(t1-t0));
+  const Y = vv => H-P - (H-2*P) * (v1===v0 ? 0.5 : (vv-v0)/(v1-v0));
+  const path = pts.map((p,i)=>`${i?"L":"M"}${X(new Date(p.ts).getTime()).toFixed(1)},${Y(p.views).toFixed(1)}`).join(" ");
+  const dots = pts.map(p=>`<circle cx="${X(new Date(p.ts).getTime()).toFixed(1)}" cy="${Y(p.views).toFixed(1)}" r="3" fill="var(--accent)"/>`).join("");
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>${dots}</svg>
+    <div class="sub">${new Date(pts[0].ts).toLocaleString("ja-JP")} ${v(v0)}回 → ${new Date(pts[pts.length-1].ts).toLocaleString("ja-JP")} ${v(v1)}回（+${v(v1-v0)}）</div>`;
+}
+
+async function openDetail(vid){
+  const ov = document.getElementById("overlay"), md = document.getElementById("modal");
+  ov.classList.add("show");
+  md.innerHTML = '<div class="empty">分析中…</div>';
+  let d;
+  try{ d = await (await fetch("/api/video?video_id="+vid)).json(); }
+  catch(e){ md.innerHTML = `<div class="empty">取得に失敗しました</div>`; return; }
+  const r = d.video;
+  md.innerHTML = `
+    <h2><a class="t" href="${r.url}" target="_blank">${esc(r.title)}</a></h2>
+    <div class="sub">${esc(r.channel_title||"")} ・ ${v(r.views)}回 ・ ${days(r.age_days)}前
+      ${r.multiple?` ・ チャンネル平均比 ${r.multiple}x`:""}
+      ${r.channel_median?` ・ このchの中央値 ${v(r.channel_median)}回`:""}</div>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <img src="${r.thumb}" style="width:240px;border-radius:8px">
+      <div style="flex:1;min-width:220px">
+        <h3 style="margin-top:0">当てはまるタイトルの型</h3>
+        <div>${(d.patterns||[]).map(p=>`<span class="tag">${esc(p)}</span>`).join("") || '<span class="sub">該当なし</span>'}</div>
+        <div class="act" style="margin-top:12px">
+          <button onclick="copyTitle('${vid}')">タイトル</button>
+          <button onclick="copyThumb('${vid}')">サムネ</button>
+          <button onclick="copyPack('${vid}')">パック</button>
+          <button onclick="saveAsMemo('${vid}')">メモに保存</button>
+          <button class="main" onclick="openAI('${vid}','claude')">Claudeで台本化</button>
+          <button class="main" onclick="openAI('${vid}','gpt')">GPTで台本化</button>
+        </div>
+      </div>
+    </div>
+    <h3>再生数の推移（実測）</h3>
+    ${sparkline(d.snapshots)}
+    <h3>台本（${d.has_transcript?"取得済み":"未取得"}）</h3>
+    <div class="act" style="margin-bottom:8px">
+      <button class="main" onclick="loadTranscript('${vid}')">${d.has_transcript?"表示する":"取得して表示"}</button>
+      <button onclick="copyTranscript('${vid}')">コピーだけする</button>
+    </div>
+    <div id="trBox"></div>
+    <h3>コメント欄の反応</h3>
+    <div class="act" style="margin-bottom:8px">
+      <button class="main" onclick="loadComments('${vid}')">取得して表示</button>
+      <button onclick="copyComments('${vid}')">要約をコピー</button>
+    </div>
+    <div id="cmBox"></div>
+    <h3>似たネタの動画（キーワード共通）</h3>
+    ${(d.similar||[]).slice(0,8).map(s=>`
+      <div style="display:flex;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)">
+        <img loading="lazy" src="${s.thumb||('/api/thumb?size=mq&video_id='+s.video_id)}"
+             style="width:104px;height:58px;object-fit:cover;border-radius:4px;flex:none">
+        <div style="flex:1;min-width:0">
+          <div class="sub" style="margin-bottom:2px">
+            ${s.is_self?'<span class="badge hot">自分</span> ':''}<a class="t" href="${s.url}" target="_blank">${esc(s.title)}</a>
+            — ${v(s.views)}回（${esc(s.channel_title)}）
+            ${(s.shared||[]).map(w=>`<span class="kw">${esc(w)}</span>`).join("")}
+          </div>
+          ${actions(s)}
+        </div>
+      </div>`).join("") || '<div class="sub">見つかりませんでした</div>'}
+    <div style="text-align:right;margin-top:14px"><button onclick="closeModal()">閉じる</button></div>`;
+  VMAP[vid] = {title: r.title, url: r.url};
+}
+
+async function loadComments(vid){
+  const box = document.getElementById("cmBox");
+  box.innerHTML = '<div class="sub">取得中… 初回は10秒ほどかかります</div>';
+  try{
+    const d = await (await fetch("/api/comments?video_id="+vid)).json();
+    if(!d.count){ box.innerHTML = '<div class="sub">コメントが取得できませんでした</div>'; return; }
+    box.innerHTML = `<div class="sub">${d.count}件取得(いいね順の上位)</div>
+      <textarea readonly style="height:200px">${esc(d.summary)}</textarea>`;
+  }catch(e){ box.innerHTML = '<div class="sub">取得に失敗しました</div>'; }
+}
+
+async function copyComments(vid){
+  toast("コメントを取得中… 初回は10秒ほどかかります");
+  try{
+    const d = await (await fetch("/api/comments?video_id="+vid)).json();
+    if(!d.count){ toast("コメントが取得できませんでした"); return; }
+    const ok = await writeClip(d.summary);
+    if(ok) toast(`コメント要約をコピーしました（${d.count}件分）`);
+    else showCopyFallback(d.summary, "コメント要約");
+  }catch(e){ toast("取得に失敗しました"); }
+}
+
+async function loadTranscript(vid){
+  const box = document.getElementById("trBox");
+  box.innerHTML = '<div class="sub">取得中… 初回は10秒ほどかかります</div>';
+  try{
+    const d = await fetchTranscript(vid);
+    if(!d.text){ box.innerHTML = `<div class="sub">${esc(d.error||"字幕がありません")}</div>`; return; }
+    box.innerHTML = `<div class="sub">${d.kind==="asr"?"自動生成字幕":"手動字幕"} / ${d.text.length.toLocaleString()}字</div>
+      <textarea readonly>${esc(d.text)}</textarea>`;
+  }catch(e){ box.innerHTML = '<div class="sub">取得に失敗しました</div>'; }
+}
+async function load(){
+  // index.html をファイルとして直接開くと、/api/... がサーバーに届かず中身が空になる。
+  // 黙って空にせず、開き直す先を案内する。
+  if(location.protocol === "file:"){
+    document.getElementById("meta").textContent = "サーバー経由で開いてください";
+    document.getElementById("panel").innerHTML = `
+      <div class="empty" style="line-height:2">
+        <div style="font-size:15px;color:var(--text);font-weight:600">このページはファイルとして開かれています</div>
+        データはローカルサーバーから読み込むため、この開き方では表示できません。<br>
+        <a class="t" href="http://localhost:8770" style="color:var(--accent);font-weight:600;font-size:15px">
+          → http://localhost:8770 を開く</a><br>
+        <span style="font-size:12px">（フォルダ内の「リサーチを開く.command」をダブルクリックしても同じです）</span>
+      </div>`;
+    return;
+  }
+  const r = await fetch("/api/data");
+  DATA = await r.json();
+  const seenTs = localStorage.getItem("ytr_new_seen") || "";
+  (DATA.new_videos||[]).forEach(v => v._isNew = (v.first_seen||"") > seenTs);
+  newCount = (DATA.new_videos||[]).filter(v=>v._isNew).length;
+  const t = new Date(DATA.generated_at);
+  document.getElementById("meta").textContent =
+    `動画 ${DATA.video_count}本 / チャンネル ${(DATA.channels||[]).length} / 更新 ${t.toLocaleString("ja-JP")}`;
+  renderNav(); render();
+}
+async function kick(quick){
+  const meta = document.getElementById("meta");
+  meta.textContent = "収集中…";
+  await fetch("/api/run"+(quick?"?quick=1":""));
+  const iv = setInterval(async ()=>{
+    const s = await (await fetch("/api/state")).json();
+    if(s.running){
+      meta.textContent = "収集中… " + (s.log || "");
+    }else{
+      clearInterval(iv);
+      meta.textContent = "集計中…";
+      load();
+      toast("収集が完了しました");
+    }
+  }, 3000);
+}
+document.getElementById("btnRun").onclick = ()=>kick(false);
+document.getElementById("btnQuick").onclick = ()=>kick(true);
+renderNav(); load();
+</script>
+</body>
+</html>

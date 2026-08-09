@@ -1,0 +1,36 @@
+Traceback (most recent call last):
+  File "/Users/iha/Music/名称未設定フォルダ/youtube-research/server.py", line 108, in <module>
+    main()
+  File "/Users/iha/Music/名称未設定フォルダ/youtube-research/server.py", line 102, in main
+    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/socketserver.py", line 452, in __init__
+    self.server_bind()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/server.py", line 138, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/socketserver.py", line 466, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 48] Address already in use
+Traceback (most recent call last):
+  File "/Users/iha/Music/名称未設定フォルダ/youtube-research/server.py", line 108, in <module>
+    main()
+  File "/Users/iha/Music/名称未設定フォルダ/youtube-research/server.py", line 102, in main
+    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/socketserver.py", line 452, in __init__
+    self.server_bind()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/server.py", line 138, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/socketserver.py", line 466, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 48] Address already in use
+Traceback (most recent call last):
+  File "/Users/iha/Music/名称未設定フォルダ/youtube-research/server.py", line 108, in <module>
+    main()
+  File "/Users/iha/Music/名称未設定フォルダ/youtube-research/server.py", line 102, in main
+    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/socketserver.py", line 452, in __init__
+    self.server_bind()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/server.py", line 138, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/socketserver.py", line 466, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 48] Address already in use

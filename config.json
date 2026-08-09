@@ -1,0 +1,31 @@
+{
+  "self_channels": ["@tomorrow_life_hack"],
+  "rival_channels": [],
+  "keywords": [
+    "ライフハック 雑学",
+    "知らないと損 生活の知恵",
+    "やってはいけない 家",
+    "掃除 裏技",
+    "電気代 節約",
+    "健康 雑学",
+    "害虫 対策",
+    "暑さ対策 エアコン",
+    "100均 便利グッズ",
+    "洗濯 裏技",
+    "冷蔵庫 保存 裏技",
+    "スマホ 設定 裏技"
+  ],
+  "search_periods": ["today", "week", "month"],
+  "auto_discover": true,
+  "max_rivals": 45,
+  "discover_min_views": 2000,
+  "exclude_channel_words": [
+    "ニュース", "news", "報道", "テレビ", "TBS", "ANN", "FNN", "NHK",
+    "海外の反応", "切り抜き", "短剧", "不動産", "宝くじ", "競馬", "予想"
+  ],
+  "genre_channel_pattern": "雑学|ライフハック|知恵|暮らし|生活|節約|裏ワザ|裏技|得する|知らな|豆知識",
+  "exclude_shorts": true,
+  "request_interval_sec": 1.6,
+  "deep_scan_top_n": 18,
+  "port": 8770
+}
