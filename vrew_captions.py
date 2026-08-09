@@ -3,7 +3,7 @@
 
 使い方:
     python3 vrew_captions.py 入力.vrew 出力.vrew [レポート.md]
-    python3 vrew_captions.py 入力.vrew 出力.vrew レポート.md --uniform 120
+    python3 vrew_captions.py 入力.vrew 出力.vrew レポート.md --keep-commas
 
 方針:
     - フォントは全クリップ150で固定。絶対に変更しない
@@ -11,6 +11,8 @@
     - 150では1行21文字・2行42文字が上限。43文字以上のクリップだけ3行になる
       (フォントを下げずに2行にする方法は、クリップ分割しかない)
     - 3行になったクリップは、レポートに分割位置の提案を出力する
+    - 必要以上の読点を省いて表示を短くする(--keep-commas で無効化)
+      読点は音声に影響しない(間は録音済み)ので、表示だけが短くなる
 
 安全性:
     書き換えるのは captions[].text[].insert と attributes["size"] だけ。
@@ -130,6 +132,101 @@ def _plain(s: str, i: int) -> float:
     return 0.5
 
 
+# ---------------------------------------------------------------
+# 読点の削減
+#
+# 読点は音声(mp3)に影響しない(間はすでに録音済み)ので、表示だけを短くできる。
+# 短くなると1行に収まるクリップが増える。台本の文体をむやみに変えないよう、
+# 省くのは「行数が減るとき」と「1クリップに読点が3つ以上あるとき」だけ。
+# ---------------------------------------------------------------
+# 文頭に置く接続詞・副詞。この直後の読点は残す
+CONNECTIVES = {
+    'でも', 'ただし', 'また', 'そして', 'つまり', 'だから', 'だからこそ', 'しかし',
+    'ちなみに', '実は', '特に', '逆に', 'さらに', 'あくまで', '実際', 'むしろ',
+    'そのため', 'もし', 'まずは', 'まず', 'たとえば', '例えば', 'なぜなら',
+    'ですから', 'それでも', 'ところが', 'もちろん', 'ただ', '一方', 'そこで',
+    'ここで', 'ここが', 'これは', 'それが', '今日は', 'では', '最後に',
+}
+# この助詞で終わる文節の直後の読点は、無くても読める
+WEAK_TAIL = ('は', 'が', 'を', 'に', 'で', 'も', 'の', 'へ')
+
+KEEP = 4.0      # 必ず残す(接続詞の直後・引用の直後・リストの区切り)
+ADVERB = 2.0    # 短い副詞の直後。行数が減るなら省いてよい
+WEAK = 1.0      # 無くても読める
+
+
+def _in_quote(s, i):
+    return s.count('「', 0, i) != s.count('」', 0, i)
+
+
+def comma_values(s):
+    """(読点の位置, 残すべき度合い) の一覧。"""
+    out, start = [], 0
+    for i, ch in enumerate(s):
+        if ch != '、':
+            continue
+        seg = s[start:i]
+        start = i + 1
+        if _in_quote(s, i):              # 「」の中の読点は台詞なので触らない
+            v = KEEP
+        elif not seg or seg in CONNECTIVES or seg.endswith(('」', '』')):
+            v = KEEP
+        elif len(seg) > 2 and seg.endswith(WEAK_TAIL):
+            v = WEAK
+        elif len(seg) <= 3:              # 「必ず、」のような短い副詞
+            v = ADVERB
+        else:                            # リストの区切りなど。省かない
+            v = KEEP
+        out.append((i, v))
+    return out
+
+
+def _build(s, drop):
+    return ''.join(c for i, c in enumerate(s) if i not in drop)
+
+
+def trim(s, nlines, one_line=21, two_line=42):
+    """読点を省いた文字列を返す。nlines(s) は行数を返す関数。"""
+    cv = comma_values(s)
+    if not cv:
+        return s, []
+    cand = [p for p, v in cv if v < KEEP]
+    if not cand:
+        return s, []
+
+    drop = set()
+    base = nlines(s)
+
+    # 1. 行数が減るなら、弱い読点から順に省く
+    for v_limit in (WEAK, ADVERB):
+        for p in [p for p, v in cv if v <= v_limit and p not in drop]:
+            trial = drop | {p}
+            if nlines(_build(s, trial)) < base:
+                drop = trial
+                base = nlines(_build(s, drop))
+                break
+            drop_try = trial          # 単独では効かなくても、まとめてなら効くことがある
+            if nlines(_build(s, drop_try)) <= base:
+                drop = drop_try
+        if nlines(_build(s, drop)) < nlines(s):
+            break
+
+    # 効果がなければ元に戻す(むやみに省かない)
+    if nlines(_build(s, drop)) >= nlines(s):
+        drop = set()
+
+    # 2. 読点が3つ以上あるクリップは、弱いものを省いて2つまでにする
+    remaining = [p for p, _ in cv if p not in drop]
+    if len(remaining) >= 3:
+        weak = [p for p, v in cv if v == WEAK and p not in drop]
+        for p in weak:
+            if len([q for q, _ in cv if q not in drop]) <= 2:
+                break
+            drop.add(p)
+
+    return _build(s, drop), sorted(drop)
+
+
 def layout(s: str):
     """フォント150固定で行に分ける。行数は最小限に抑える。"""
     n = len(s)
@@ -198,7 +295,7 @@ def suggest_split(s: str):
     return (best[1], best[2]) if best else None
 
 
-def process(src, dst, report=None):
+def process(src, dst, report=None, trim_commas=True):
     with zipfile.ZipFile(src) as z:
         names = z.namelist()
         infos = {i.filename: i for i in z.infolist()}
@@ -213,6 +310,9 @@ def process(src, dst, report=None):
         body = body.rstrip('\n')
         if not body:
             continue
+        orig = body
+        if trim_commas:
+            body, _ = trim(body, lambda x: len(layout(x)))
         lines = layout(body)
         parts[0]['insert'] = '\n'.join(lines) + trailing
         for t in parts[1:]:
@@ -221,7 +321,7 @@ def process(src, dst, report=None):
         for cc in c['captions']:
             for t in cc['text']:
                 t['attributes']['size'] = str(FONT_SIZE)
-        rows.append((idx, body, lines))
+        rows.append((idx, body, lines, orig))
 
     data['project.json'] = json.dumps(
         proj, ensure_ascii=False, separators=(',', ':')).encode()
@@ -253,11 +353,22 @@ def _write_report(path, rows):
     three = [r for r in rows if len(r[2]) >= 3]
     weak = [r for r in rows if len(r[2]) == 2 and weak_break(r[1], r[2])]
     todo = sorted(three + weak, key=lambda r: r[0])
+    trimmed = [r for r in rows if len(r) > 3 and r[3] != r[1]]
     with open(path, 'w') as f:
         f.write('# 字幕レイアウト結果（フォント150固定）\n\n')
         f.write(f'- 1行: {sum(1 for r in rows if len(r[2]) == 1)}件\n')
         f.write(f'- 2行: {sum(1 for r in rows if len(r[2]) == 2)}件\n')
-        f.write(f'- 3行: {len(three)}件（43文字以上のため2行に収まらない）\n\n')
+        f.write(f'- 3行: {len(three)}件（43文字以上のため2行に収まらない）\n')
+        n_drop = sum(r[3].count('、') - r[1].count('、') for r in trimmed)
+        f.write(f'- 省いた読点: {n_drop}個（{len(trimmed)}クリップ）\n\n')
+        if trimmed:
+            f.write('## 省いた読点\n\n')
+            f.write('読点は音声に影響しません（間はすでに録音済み）。\n')
+            f.write('表示が短くなるぶん、1行に収まるクリップが増えます。\n\n')
+            for r in trimmed:
+                f.write(f'**clip {r[0]}**\n\n')
+                f.write(f'- 旧 `{r[3]}`\n- 新 `{r[1]}`\n\n')
+            f.write('---\n\n')
         f.write('フォント150では **1行21文字・2行42文字** が上限です。\n')
         f.write('フォントを変えずにこれを超える文を2行にする方法は、\n')
         f.write('**クリップを2つに分割する**ことだけです。\n\n')
@@ -265,7 +376,7 @@ def _write_report(path, rows):
             f.write(f'## 分割をおすすめするクリップ（{len(todo)}件）\n\n')
             f.write('Vrewで分割位置にカーソルを置き、Enterを押すとクリップが分かれます。\n')
             f.write('分割するとAI音声もその位置で分かれるので、音声は作り直し不要です。\n\n')
-            for idx, body, lines in todo:
+            for idx, body, lines, *_ in todo:
                 reason = '3行になっている' if len(lines) >= 3 else '語の途中で改行されている'
                 f.write(f'### clip {idx}（{len(body)}文字・{reason}）\n\n')
                 f.write('現状:\n```\n' + '\n'.join(lines) + '\n```\n\n')
@@ -278,7 +389,7 @@ def _write_report(path, rows):
                 else:
                     f.write('適切な分割位置が見つかりません。手動で判断してください。\n\n')
         f.write('---\n\n## 全クリップ\n\n')
-        for idx, body, lines in rows:
+        for idx, body, lines, *_ in rows:
             mark = ' ★3行' if len(lines) >= 3 else ''
             f.write(f'### {idx}{mark}\n```\n' + '\n'.join(lines) + '\n```\n\n')
 
@@ -288,14 +399,18 @@ def main(argv):
         print(__doc__)
         return 1
     src, dst = argv[1], argv[2]
-    report = argv[3] if len(argv) > 3 else None
+    report = argv[3] if len(argv) > 3 and not argv[3].startswith('--') else None
+    trim_commas = '--keep-commas' not in argv
 
-    rows = process(src, dst, report)
+    rows = process(src, dst, report, trim_commas)
     cnt = Counter(len(r[2]) for r in rows)
     print(f'{len(rows)}クリップ（フォント150固定）: '
           f'1行={cnt[1]} 2行={cnt[2]} 3行={cnt[3]}')
-    over = [(i, l) for i, _, ls in rows for l in ls if len(l) > CPL]
+    over = [(i, l) for i, _, ls, *_ in rows for l in ls if len(l) > CPL]
     print('はみ出し:', over or 'なし')
+    n_drop = sum(r[3].count('、') - r[1].count('、') for r in rows if len(r) > 3)
+    if n_drop:
+        print(f'省いた読点: {n_drop}個')
     todo = [r[0] for r in rows
             if len(r[2]) >= 3 or (len(r[2]) == 2 and weak_break(r[1], r[2]))]
     if todo:
