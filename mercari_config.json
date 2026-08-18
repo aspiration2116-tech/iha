@@ -1,0 +1,23 @@
+{
+  "_comment": "メルカリShops API 自動出品アプリの設定。トークンは mercari_token.txt か環境変数 MERCARI_SHOPS_TOKEN に置くこと(このファイルには書かない)",
+  "endpoint": "https://api.mercari-shops.com/v1/graphql",
+  "sandbox_endpoint": "https://api.sandbox.mercari-shops.com/v1/graphql",
+  "use_sandbox": false,
+  "port": 8771,
+
+  "product_defaults": {
+    "_comment": "createProduct の入力(CreateProductInput)にそのままマージされる既定値。フィールド名は `python3 mercari_api.py schema CreateProductInput` で実際のスキーマを確認して調整する",
+    "condition": "NEW",
+    "shippingPayer": "SELLER",
+    "shippingMethod": "UNDECIDED",
+    "shippingDuration": "TWO_TO_THREE_DAYS",
+    "shippingFromStateId": "13"
+  },
+
+  "schedule": {
+    "enabled": false,
+    "time": "10:00",
+    "items_per_run": 5,
+    "interval_seconds": 5
+  }
+}

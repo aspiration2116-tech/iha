@@ -1,0 +1,3 @@
+name,description,price,stock,category_id,condition,image_urls
+サンプル商品A,商品説明をここに書きます。改行したい場合はセルを引用符で囲みます。,1980,3,,NEW,https://example.com/photo-a1.jpg|https://example.com/photo-a2.jpg
+サンプル商品B,状態の良い中古品です。,3500,1,,,https://example.com/photo-b1.jpg

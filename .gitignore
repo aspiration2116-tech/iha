@@ -1,0 +1,6 @@
+# 秘密情報・ローカルデータ(コミットしない)
+mercari_token.txt
+mercari.db
+mercari_server.log
+__pycache__/
+*.pyc

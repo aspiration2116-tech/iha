@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>メルカリShops 自動出品</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --text:#1f2430; --sub:#69707d;
+  --accent:#e53935; --accent2:#3949ab; --border:#e2e5ea; --ok:#2e7d32; --err:#c62828;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px}
+header{background:var(--accent);color:#fff;padding:14px 20px;display:flex;
+  align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;font-weight:700}
+#envBadge{font-size:11px;background:rgba(255,255,255,.2);border-radius:10px;padding:2px 10px}
+#tokenBadge{font-size:11px;border-radius:10px;padding:2px 10px;background:#fff}
+main{max-width:1080px;margin:0 auto;padding:16px}
+nav{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+nav button{border:1px solid var(--border);background:var(--card);padding:8px 16px;
+  border-radius:20px;cursor:pointer;font-size:13px}
+nav button.active{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 12px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);
+  vertical-align:top;word-break:break-word}
+th{font-size:12px;color:var(--sub);font-weight:600}
+.status{font-size:11px;border-radius:9px;padding:2px 8px;white-space:nowrap}
+.st-queued{background:#e3f2fd;color:#1565c0}
+.st-listed{background:#e8f5e9;color:var(--ok)}
+.st-error{background:#ffebee;color:var(--err)}
+.st-draft{background:#eee;color:#555}
+label{display:block;font-size:12px;color:var(--sub);margin:10px 0 4px}
+input[type=text],input[type=number],input[type=time],input[type=password],textarea,select{
+  width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;
+  font-size:14px;font-family:inherit}
+textarea{min-height:90px;resize:vertical}
+.btn{background:var(--accent2);color:#fff;border:none;padding:9px 18px;
+  border-radius:6px;cursor:pointer;font-size:14px}
+.btn.red{background:var(--accent)}
+.btn.ghost{background:var(--card);color:var(--text);border:1px solid var(--border)}
+.btn.small{padding:4px 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row>div{flex:1;min-width:180px}
+#msg{position:fixed;right:16px;bottom:16px;background:#333;color:#fff;
+  padding:10px 16px;border-radius:8px;display:none;max-width:420px;z-index:9}
+.muted{color:var(--sub);font-size:12px}
+pre{background:#f0f1f4;border-radius:6px;padding:10px;overflow:auto;font-size:12px}
+.log-error{color:var(--err)}
+.notice{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;
+  padding:10px 14px;font-size:12px;color:#6d4c00;margin-bottom:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>メルカリShops 自動出品</h1>
+  <span id="envBadge">-</span>
+  <span id="tokenBadge">確認中...</span>
+</header>
+<main>
+<div class="notice">
+  本アプリはメルカリShops公式APIを利用します。個人向けメルカリ(フリマ)への出品はできません。
+  出品前に <b>設定</b> タブで接続テストを行ってください。
+</div>
+
+<nav>
+  <button data-tab="queue" class="active">出品キュー</button>
+  <button data-tab="add">商品を追加</button>
+  <button data-tab="csv">CSV一括登録</button>
+  <button data-tab="listed">出品済み</button>
+  <button data-tab="settings">設定・ログ</button>
+</nav>
+
+<!-- 出品キュー -->
+<section id="tab-queue">
+  <div class="card">
+    <h2>出品キュー <span id="queueCount" class="muted"></span></h2>
+    <p>
+      <button class="btn red" id="runBtn" onclick="runNow()">今すぐ出品する</button>
+      <span class="muted">キューの商品を古い順に出品します(1回の上限は設定タブの件数)</span>
+    </p>
+    <table>
+      <thead><tr><th>#</th><th>商品名</th><th>価格</th><th>在庫</th>
+        <th>状態</th><th></th></tr></thead>
+      <tbody id="queueBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 商品を追加 -->
+<section id="tab-add" style="display:none">
+  <div class="card">
+    <h2 id="addTitle">商品を追加</h2>
+    <input type="hidden" id="f_id">
+    <div class="row">
+      <div><label>商品名 *</label><input type="text" id="f_name" maxlength="130"></div>
+      <div><label>価格(円) *</label><input type="number" id="f_price" min="0"></div>
+      <div><label>在庫数</label><input type="number" id="f_stock" value="1" min="0"></div>
+    </div>
+    <label>商品説明</label>
+    <textarea id="f_description"></textarea>
+    <div class="row">
+      <div><label>カテゴリID <span class="muted">(未入力なら既定値)</span></label>
+        <input type="text" id="f_category"></div>
+      <div><label>商品の状態 <span class="muted">(例: NEW / 未入力なら既定値)</span></label>
+        <input type="text" id="f_condition"></div>
+    </div>
+    <label>画像URL <span class="muted">(https:// の公開URLのみ・1行に1つ)</span></label>
+    <textarea id="f_images" placeholder="https://example.com/photo1.jpg"></textarea>
+    <p>
+      <button class="btn" onclick="saveItem()">保存してキューに入れる</button>
+      <button class="btn ghost" onclick="resetForm()">クリア</button>
+    </p>
+  </div>
+</section>
+
+<!-- CSV -->
+<section id="tab-csv" style="display:none">
+  <div class="card">
+    <h2>CSV一括登録</h2>
+    <p class="muted">1行目はヘッダー。列: name, description, price, stock,
+      category_id, condition, image_urls(複数は | 区切り)。
+      ファイルを選ぶか、内容を貼り付けて登録してください。</p>
+    <p><input type="file" id="csvFile" accept=".csv,text/csv"></p>
+    <textarea id="csvText" style="min-height:140px"
+      placeholder="name,description,price,stock,category_id,condition,image_urls&#10;サンプル商品,説明文,1500,3,,NEW,https://example.com/1.jpg|https://example.com/2.jpg"></textarea>
+    <p><button class="btn" onclick="importCsv()">キューに登録する</button></p>
+  </div>
+</section>
+
+<!-- 出品済み -->
+<section id="tab-listed" style="display:none">
+  <div class="card">
+    <h2>出品済み商品(ショップ側の最新情報)</h2>
+    <p><button class="btn ghost" onclick="loadProducts()">再読み込み</button></p>
+    <table>
+      <thead><tr><th>商品ID</th><th>商品名</th><th>ステータス</th></tr></thead>
+      <tbody id="productsBody"><tr><td colspan="3" class="muted">未取得</td></tr></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 設定・ログ -->
+<section id="tab-settings" style="display:none">
+  <div class="card">
+    <h2>API接続</h2>
+    <label>アクセストークン
+      <span class="muted">(ショップ管理画面 → 設定 → APIアクセストークンを発行)</span></label>
+    <input type="password" id="s_token" placeholder="保存済みの場合は空のままでOK">
+    <label><input type="checkbox" id="s_sandbox"> サンドボックス環境を使う(テスト用)</label>
+    <p>
+      <button class="btn" onclick="saveSettings()">保存</button>
+      <button class="btn ghost" onclick="testConnection()">接続テスト</button>
+      <button class="btn ghost" onclick="showSchema()">スキーマ確認(CreateProductInput)</button>
+    </p>
+    <pre id="testResult" style="display:none"></pre>
+  </div>
+  <div class="card">
+    <h2>自動出品スケジュール</h2>
+    <label><input type="checkbox" id="s_enabled"> 毎日自動で出品する</label>
+    <div class="row">
+      <div><label>実行時刻</label><input type="time" id="s_time" value="10:00"></div>
+      <div><label>1回に出品する件数(config: items_per_run)</label>
+        <input type="text" id="s_perrun" disabled></div>
+    </div>
+    <p><button class="btn" onclick="saveSettings()">保存</button>
+      <span class="muted">アプリ(mercari_server.py)が起動している間だけ動作します</span></p>
+  </div>
+  <div class="card">
+    <h2>出品時の既定値(mercari_config.json の product_defaults)</h2>
+    <pre id="defaultsView"></pre>
+  </div>
+  <div class="card">
+    <h2>実行ログ</h2>
+    <div id="logView" style="max-height:300px;overflow:auto;font-size:12px"></div>
+  </div>
+</section>
+</main>
+<div id="msg"></div>
+
+<script>
+let state = null;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function toast(text, ms){
+  const m = $("msg"); m.textContent = text; m.style.display = "block";
+  clearTimeout(m._t); m._t = setTimeout(()=>m.style.display="none", ms||3500);
+}
+async function api(path, body){
+  const opt = body ? {method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body)} : {};
+  const res = await fetch(path, opt);
+  return res.json();
+}
+
+// タブ切替
+document.querySelectorAll("nav button").forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    document.querySelectorAll("main > section").forEach(s=>s.style.display="none");
+    $("tab-"+b.dataset.tab).style.display = "";
+    if (b.dataset.tab === "listed" && !$("productsBody")._loaded) loadProducts();
+  };
+});
+
+const STATUS_JP = {queued:"出品待ち", listed:"出品済み", error:"エラー", draft:"下書き"};
+
+async function refresh(){
+  state = await api("/api/state");
+  $("envBadge").textContent = state.use_sandbox ? "サンドボックス" : "本番環境";
+  $("tokenBadge").textContent = state.has_token ? "トークン設定済み" : "トークン未設定";
+  $("tokenBadge").style.color = state.has_token ? "var(--ok)" : "var(--err)";
+
+  const q = state.queue || [];
+  $("queueCount").textContent = "(出品待ち " +
+    q.filter(i=>i.status==="queued").length + "件 / 全" + q.length + "件)";
+  $("queueBody").innerHTML = q.map(i=>`
+    <tr>
+      <td>${i.id}</td>
+      <td>${esc(i.name)}${i.error?`<div class="muted log-error">${esc(i.error)}</div>`:""}
+        ${i.product_id?`<div class="muted">product_id: ${esc(i.product_id)}</div>`:""}</td>
+      <td>¥${Number(i.price).toLocaleString()}</td>
+      <td>${i.stock}</td>
+      <td><span class="status st-${esc(i.status)}">${STATUS_JP[i.status]||esc(i.status)}</span></td>
+      <td style="white-space:nowrap">
+        ${i.status!=="listed"?`<button class="btn small ghost" onclick='editItem(${i.id})'>編集</button>`:""}
+        ${i.status==="error"?`<button class="btn small ghost" onclick='requeue(${i.id})'>再試行</button>`:""}
+        <button class="btn small ghost" onclick='removeItem(${i.id})'>削除</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="6" class="muted">キューは空です。「商品を追加」か「CSV一括登録」から登録してください。</td></tr>`;
+
+  $("runBtn").disabled = !!state.running;
+  $("runBtn").textContent = state.running ? "出品処理を実行中..." : "今すぐ出品する";
+
+  $("s_enabled").checked = state.settings.schedule_enabled === "1";
+  $("s_time").value = state.settings.schedule_time;
+  $("s_perrun").value = state.settings.items_per_run + "件";
+  $("s_sandbox").checked = !!state.use_sandbox;
+  $("defaultsView").textContent = JSON.stringify(state.product_defaults, null, 2);
+
+  $("logView").innerHTML = (state.logs||[]).map(l=>
+    `<div class="${l.level==='error'?'log-error':''}">
+      ${esc(l.ts.replace('T',' ').replace('+00:00',''))} [${esc(l.level)}] ${esc(l.message)}</div>`
+  ).join("") || '<span class="muted">ログはまだありません</span>';
+}
+
+// ---- キュー操作
+function resetForm(){
+  ["f_id","f_name","f_price","f_description","f_category","f_condition","f_images"]
+    .forEach(id=>$(id).value="");
+  $("f_stock").value = 1;
+  $("addTitle").textContent = "商品を追加";
+}
+function editItem(id){
+  const it = state.queue.find(x=>x.id===id); if(!it) return;
+  $("f_id").value = it.id; $("f_name").value = it.name;
+  $("f_price").value = it.price; $("f_stock").value = it.stock;
+  $("f_description").value = it.description; $("f_category").value = it.category_id;
+  $("f_condition").value = it.condition;
+  $("f_images").value = (it.image_urls||[]).join("\n");
+  $("addTitle").textContent = "商品を編集 (#" + it.id + ")";
+  document.querySelector('nav button[data-tab="add"]').click();
+}
+async function saveItem(){
+  const item = {
+    name: $("f_name").value, price: $("f_price").value,
+    stock: $("f_stock").value || 1, description: $("f_description").value,
+    category_id: $("f_category").value, condition: $("f_condition").value,
+    image_urls: $("f_images").value.split("\n").map(s=>s.trim()).filter(Boolean),
+  };
+  const res = await api("/api/item", {id: $("f_id").value || null, item});
+  if(!res.ok){ toast("保存できません: " + res.error); return; }
+  toast("キューに保存しました (#" + res.id + ")");
+  resetForm(); refresh();
+}
+async function removeItem(id){
+  if(!confirm("#" + id + " をキューから削除しますか？")) return;
+  await api("/api/item/delete", {id}); refresh();
+}
+async function requeue(id){
+  await api("/api/item/requeue", {id}); toast("出品待ちに戻しました"); refresh();
+}
+
+// ---- CSV
+$("csvFile").addEventListener("change", ev=>{
+  const f = ev.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{ $("csvText").value = r.result; };
+  r.readAsText(f, "utf-8");
+});
+async function importCsv(){
+  const csv = $("csvText").value.trim();
+  if(!csv){ toast("CSVの内容がありません"); return; }
+  const res = await api("/api/import", {csv});
+  if(res.ok){ toast(res.count + "件をキューに登録しました"); $("csvText").value="";
+    $("csvFile").value=""; refresh(); }
+  else toast("取り込み失敗: " + res.error);
+}
+
+// ---- 出品
+async function runNow(){
+  if(!state.has_token){ toast("先に設定タブでアクセストークンを保存してください"); return; }
+  const n = state.queue.filter(i=>i.status==="queued").length;
+  if(!n){ toast("出品待ちの商品がありません"); return; }
+  if(!confirm("出品待ちの商品を最大" + state.settings.items_per_run +
+    "件、" + (state.use_sandbox?"サンドボックス":"本番ショップ") +
+    "に出品します。よろしいですか？")) return;
+  $("runBtn").disabled = true; $("runBtn").textContent = "出品処理を実行中...";
+  const res = await api("/api/run", {});
+  if(res.ok) toast("完了: 成功" + res.result.listed + "件 / 失敗" + res.result.failed + "件", 6000);
+  else toast("実行できません: " + res.error);
+  refresh();
+}
+
+// ---- 出品済み
+async function loadProducts(){
+  $("productsBody").innerHTML = '<tr><td colspan="3" class="muted">読み込み中...</td></tr>';
+  const res = await api("/api/products");
+  $("productsBody")._loaded = true;
+  if(!res.ok){
+    $("productsBody").innerHTML =
+      `<tr><td colspan="3" class="log-error">${esc(res.error)}</td></tr>`;
+    return;
+  }
+  $("productsBody").innerHTML = (res.products||[]).map(p=>
+    `<tr><td>${esc(p.id)}</td><td>${esc(p.name)}</td><td>${esc(p.status)}</td></tr>`
+  ).join("") || '<tr><td colspan="3" class="muted">商品がありません</td></tr>';
+}
+
+// ---- 設定
+async function saveSettings(){
+  const body = {
+    schedule_enabled: $("s_enabled").checked,
+    schedule_time: $("s_time").value,
+    use_sandbox: $("s_sandbox").checked,
+  };
+  const tok = $("s_token").value.trim();
+  if(tok) body.token = tok;
+  await api("/api/settings", body);
+  $("s_token").value = "";
+  toast("設定を保存しました"); refresh();
+}
+async function testConnection(){
+  $("testResult").style.display = "block";
+  $("testResult").textContent = "接続テスト中...";
+  const res = await api("/api/test");
+  $("testResult").textContent = res.ok
+    ? "接続成功\n" + JSON.stringify(res.data, null, 2)
+    : "接続失敗: " + res.error;
+}
+async function showSchema(){
+  $("testResult").style.display = "block";
+  $("testResult").textContent = "取得中...";
+  const res = await fetch("/api/schema?type=CreateProductInput").then(r=>r.json());
+  $("testResult").textContent = res.ok ? res.text : "取得失敗: " + res.error;
+}
+
+refresh();
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>
