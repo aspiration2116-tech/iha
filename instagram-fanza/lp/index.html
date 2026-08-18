@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>ヨルノホンヤの棚</title>
+<style>
+  :root{
+    --bg:#0F1330; --bg2:#171D46; --card:#1C2352; --line:#2B3372;
+    --text:#F3EFE4; --muted:#9AA2CF; --gold:#F6C963; --rose:#E97C7C;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;
+       -webkit-text-size-adjust:100%;line-height:1.7}
+  .wrap{max-width:640px;margin:0 auto;padding:24px 16px 80px}
+
+  header{text-align:center;padding:24px 0 8px}
+  header h1{font-size:22px;margin:0 0 6px;letter-spacing:.02em}
+  header p{margin:0;color:var(--muted);font-size:13px}
+  .ig{display:inline-block;margin-top:14px;padding:9px 18px;border:1px solid var(--line);
+      border-radius:999px;color:var(--muted);text-decoration:none;font-size:13px}
+
+  .pr{margin:20px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+      color:var(--muted);font-size:12px;background:rgba(255,255,255,.02)}
+
+  .tabs{display:flex;gap:8px;overflow-x:auto;padding:18px 0 6px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{white-space:nowrap;padding:8px 15px;border-radius:999px;border:1px solid var(--line);
+       background:transparent;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit}
+  .tab[aria-selected="true"]{background:var(--gold);border-color:var(--gold);color:#1A1A1A;font-weight:700}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+        padding:16px;margin:14px 0}
+  .card h2{font-size:16px;margin:0 0 4px;line-height:1.5}
+  .meta{font-size:12px;color:var(--muted);margin:0 0 10px}
+  .comment{font-size:14px;margin:0 0 14px;color:#DCD8CC}
+  .btn{display:block;text-align:center;background:var(--gold);color:#1A1A1A;
+       text-decoration:none;font-weight:700;padding:13px;border-radius:10px;font-size:15px}
+  .btn:active{opacity:.85}
+  .sub{display:inline-block;margin-top:10px;font-size:12px;color:var(--muted);text-decoration:underline}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;
+         border:1px solid var(--rose);color:var(--rose);margin-left:6px;vertical-align:middle}
+
+  footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);
+         color:var(--muted);font-size:12px}
+  footer a{color:var(--muted)}
+
+  /* 年齢確認 */
+  #gate{position:fixed;inset:0;background:#0B0F26;display:flex;align-items:center;
+        justify-content:center;padding:24px;z-index:50}
+  #gate .box{max-width:400px;text-align:center}
+  #gate h2{font-size:19px;margin:0 0 14px}
+  #gate p{font-size:13px;color:var(--muted);margin:0 0 22px}
+  #gate .row{display:flex;gap:12px}
+  #gate button{flex:1;padding:14px;border-radius:10px;font-size:15px;font-weight:700;
+               font-family:inherit;cursor:pointer;border:1px solid var(--line)}
+  #yes{background:var(--gold);color:#1A1A1A;border-color:var(--gold)}
+  #no{background:transparent;color:var(--muted)}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<div id="gate" hidden>
+  <div class="box">
+    <h2>年齢確認</h2>
+    <p>このページには、成人向け（18歳以上を対象とした）作品へのリンクが含まれます。<br>
+       あなたは18歳以上ですか？</p>
+    <div class="row">
+      <button id="no" type="button">いいえ</button>
+      <button id="yes" type="button">はい（18歳以上）</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <h1 id="siteTitle"></h1>
+    <p id="siteTagline"></p>
+    <a class="ig" id="igLink" href="#">Instagramに戻る</a>
+  </header>
+
+  <p class="pr" id="prNote"></p>
+
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div id="list"></div>
+
+  <footer>
+    <p id="footNote"></p>
+    <p>掲載作品の権利はすべて各権利者に帰属します。</p>
+  </footer>
+</div>
+
+<script>
+const KEY = 'age_ok_v1';
+const params = new URLSearchParams(location.search);
+const from = params.get('from') || '';   // 例: ?from=reel012
+
+let DATA = null, current = 'all';
+
+function ageOK(){ try{ return localStorage.getItem(KEY) === '1'; }catch(e){ return false; } }
+function setAgeOK(){ try{ localStorage.setItem(KEY,'1'); }catch(e){} }
+
+function showGate(){
+  const gate = document.getElementById('gate');
+  if (ageOK()) { gate.remove(); return; }
+  gate.hidden = false;
+  document.getElementById('yes').onclick = () => { setAgeOK(); gate.remove(); render(); };
+  document.getElementById('no').onclick  = () => { location.href = 'https://www.google.com/'; };
+}
+
+// af_id の枝番に流入元を混ぜて、どの投稿から売れたか計測する
+function trackUrl(url){
+  if (!from) return url;
+  try {
+    const u = new URL(url);
+    const af = u.searchParams.get('af_id');
+    if (af) u.searchParams.set('af_id', af.replace(/-\d+$/, '') + '-' + from.replace(/[^a-zA-Z0-9]/g,'').slice(0,10));
+    return u.toString();
+  } catch(e){ return url; }
+}
+
+function render(){
+  const list = document.getElementById('list');
+  const adult = ageOK();
+  const items = DATA.works
+    .filter(w => adult || !w.adult)
+    .filter(w => current === 'all' || w.category === current)
+    .sort((a,b) => (b.postedAt||'').localeCompare(a.postedAt||''));
+
+  if (!items.length){
+    list.innerHTML = '<p class="meta" style="text-align:center;padding:32px 0">このカテゴリの作品はまだありません。</p>';
+    return;
+  }
+
+  list.innerHTML = items.map(w => `
+    <article class="card">
+      <h2>${esc(w.title)}${w.adult ? '<span class="badge">18+</span>' : ''}</h2>
+      <p class="meta">${esc(w.circle||'')}${w.postedAt ? ' ・ 紹介日 ' + esc(w.postedAt) : ''}</p>
+      <p class="comment">${esc(w.comment||'')}</p>
+      <a class="btn" href="${esc(trackUrl(w.url))}" target="_blank" rel="nofollow sponsored noopener">FANZAで作品を見る</a>
+      ${w.reel ? `<a class="sub" href="${esc(w.reel)}" target="_blank" rel="noopener">紹介したリールを見る</a>` : ''}
+    </article>`).join('');
+}
+
+function renderTabs(){
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = DATA.categories.map(c =>
+    `<button class="tab" role="tab" data-id="${esc(c.id)}" aria-selected="${c.id===current}">${esc(c.label)}</button>`
+  ).join('');
+  tabs.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+    current = b.dataset.id;
+    tabs.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x===b)));
+    render();
+  });
+}
+
+function esc(s){ return String(s??'').replace(/[&<>"']/g, m => (
+  {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+fetch('works.json').then(r => r.json()).then(d => {
+  DATA = d;
+  document.getElementById('siteTitle').textContent = d.site.title;
+  document.getElementById('siteTagline').textContent = d.site.tagline;
+  document.getElementById('igLink').href = d.site.instagram;
+  document.getElementById('prNote').textContent = d.site.note;
+  document.getElementById('footNote').textContent = d.site.note;
+  renderTabs();
+  render();
+  showGate();
+});
+</script>
+</body>
+</html>

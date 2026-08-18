@@ -1,0 +1,50 @@
+{
+  "site": {
+    "title": "ヨルノホンヤの棚",
+    "tagline": "Instagramで紹介した作品をまとめています",
+    "instagram": "https://www.instagram.com/yoru.doujin/",
+    "note": "当ページはアフィリエイトプログラムを利用した広告を含みます。"
+  },
+  "categories": [
+    { "id": "all",     "label": "すべて" },
+    { "id": "jireta",  "label": "じれったい" },
+    { "id": "osana",   "label": "幼なじみ" },
+    { "id": "otona",   "label": "大人の恋愛" },
+    { "id": "voice",   "label": "ボイス・ASMR" }
+  ],
+  "works": [
+    {
+      "id": "w001",
+      "title": "作品タイトルをここに",
+      "circle": "サークル名",
+      "category": "jireta",
+      "comment": "Instagramで紹介した回の一言コメント。ネタバレなしで「誰に刺さるか」を書く。",
+      "postedAt": "2026-08-18",
+      "reel": "https://www.instagram.com/reel/XXXXXXXXX/",
+      "url": "https://al.dmm.co.jp/?lurl=商品URLをエンコードしたもの&af_id=YOURID-001&ch=link_tool&ch_id=text",
+      "adult": true
+    },
+    {
+      "id": "w002",
+      "title": "2作目のタイトル",
+      "circle": "サークル名",
+      "category": "osana",
+      "comment": "ここも同じ。1〜2文で止める。長いと読まれない。",
+      "postedAt": "2026-08-17",
+      "reel": "",
+      "url": "https://al.dmm.co.jp/?lurl=...&af_id=YOURID-001&ch=link_tool&ch_id=text",
+      "adult": true
+    },
+    {
+      "id": "w003",
+      "title": "全年齢作品のタイトル",
+      "circle": "サークル名",
+      "category": "otona",
+      "comment": "全年齢作品は adult: false にすると年齢確認前でも表示できる。",
+      "postedAt": "2026-08-16",
+      "reel": "",
+      "url": "https://al.dmm.co.jp/?lurl=...&af_id=YOURID-002&ch=link_tool&ch_id=text",
+      "adult": false
+    }
+  ]
+}

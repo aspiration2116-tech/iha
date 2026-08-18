@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <defs>
+    <linearGradient id="bgB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3A1D5C"/>
+      <stop offset="55%" stop-color="#5B2160"/>
+      <stop offset="100%" stop-color="#2A1240"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1080" fill="url(#bgB)"/>
+
+  <!-- outer ring -->
+  <circle cx="540" cy="540" r="452" fill="none" stroke="#F6C963" stroke-width="10" opacity=".45"/>
+
+  <!-- speech-bubble card -->
+  <g>
+    <rect x="270" y="252" width="540" height="470" rx="52" fill="#F7EFDF"/>
+    <path d="M470 722 h150 l-52 118 z" fill="#F7EFDF"/>
+    <!-- kanji -->
+    <text x="540" y="560" font-family="IPAGothic, 'Noto Sans JP', sans-serif"
+          font-size="330" font-weight="bold" fill="#3A1D5C"
+          text-anchor="middle" dominant-baseline="middle">同</text>
+  </g>
+
+  <!-- underline accent -->
+  <rect x="392" y="878" width="296" height="20" rx="10" fill="#F6C963"/>
+</svg>
