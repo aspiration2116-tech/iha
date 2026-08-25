@@ -1,0 +1,13 @@
+# 動画の作業フォルダ（音声・画像・mp4 が入るので重い）
+video_work/
+thumbs/
+
+# ログ
+*.log
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc

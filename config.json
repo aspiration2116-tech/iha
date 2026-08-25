@@ -27,5 +27,22 @@
   "exclude_shorts": true,
   "request_interval_sec": 1.6,
   "deep_scan_top_n": 18,
-  "port": 8770
+  "port": 8770,
+  "pixabay_key": "",
+  "video": {
+    "voicevox_speaker": 3,
+    "voice_speed": 1.0,
+    "caption_font": "Hiragino Sans",
+    "caption_size": 72,
+    "caption_color": "000000",
+    "caption_outline": "ffffff",
+    "caption_outline_width": 6,
+    "caption_margin_v": 90,
+    "image_type": "illustration",
+    "clip_pad_sec": 0.25,
+    "bgm_volume": 0.06,
+    "width": 1920,
+    "height": 1080,
+    "fps": 30
+  }
 }

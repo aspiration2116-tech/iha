@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import analysis
 import research
+import videogen
 import websearch
 import ytfetch
 
@@ -27,6 +28,40 @@ _run_lock = threading.Lock()
 _run_state = {"running": False, "message": "", "last": None}
 
 THUMB_DIR = os.path.join(BASE, "thumbs")
+
+_video_lock = threading.Lock()
+_video_state = {"running": False, "step": "", "message": "", "error": "",
+                "output": None, "total_sec": None}
+
+
+def _video_cfg():
+    """config.json の video 設定を既定値に重ねる。"""
+    cfg = dict(videogen.DEFAULTS)
+    cfg.update(CFG.get("video", {}))
+    if CFG.get("pixabay_key"):
+        cfg.setdefault("pixabay_key", CFG["pixabay_key"])
+    return cfg
+
+
+def _video_run(fn, step):
+    """重い処理をバックグラウンドで走らせる。同時に1本だけ。"""
+    if not _video_lock.acquire(blocking=False):
+        return False
+    _video_state.update(running=True, step=step, message="準備しています",
+                        error="", output=None)
+
+    def worker():
+        try:
+            fn(lambda m: _video_state.update(message=m))
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            _video_state["error"] = str(e)
+        finally:
+            _video_state["running"] = False
+            _video_lock.release()
+
+    threading.Thread(target=worker, daemon=True).start()
+    return True
 
 AI_PROMPT_HEADER = CFG.get("ai_prompt_header",
     "あなたはYouTubeの「ライフハック雑学」チャンネルの放送作家です。"
@@ -275,6 +310,28 @@ class Handler(BaseHTTPRequestHandler):
                     pass
                 return self._send(200, json.dumps(dict(_run_state, log=tail),
                                                   ensure_ascii=False))
+            if path == "/api/video/env":
+                env = videogen.check_env(_video_cfg())
+                env["projects"] = sorted(os.listdir(videogen.WORK)) \
+                    if os.path.isdir(videogen.WORK) else []
+                return self._send(200, json.dumps(env, ensure_ascii=False))
+            if path == "/api/video/progress":
+                return self._send(200, json.dumps(_video_state, ensure_ascii=False))
+            if path == "/api/video/plan":
+                plan = videogen.load_plan(videogen.project_dir(qs.get("name", [""])[0]))
+                return self._send(200, json.dumps(plan or {}, ensure_ascii=False))
+            if path == "/api/video/file":
+                # 作業フォルダの中だけを返す
+                rel = qs.get("p", [""])[0]
+                full = os.path.realpath(os.path.join(videogen.WORK, rel))
+                if not full.startswith(os.path.realpath(videogen.WORK)) \
+                        or not os.path.isfile(full):
+                    return self._send(404, json.dumps({"error": "not found"}))
+                ctype = {"mp4": "video/mp4", "jpg": "image/jpeg", "png": "image/png",
+                         "wav": "audio/wav"}.get(full.rsplit(".", 1)[-1].lower(),
+                                                 "application/octet-stream")
+                with open(full, "rb") as f:
+                    return self._send(200, f.read(), ctype)
             if path == "/api/mute":
                 cid = qs.get("channel_id", [""])[0]
                 con = research.connect()
@@ -492,6 +549,77 @@ class Handler(BaseHTTPRequestHandler):
                 finally:
                     con.close()
                 return self._send(200, json.dumps({"ok": True, "id": mid}))
+            if parsed.path == "/api/video/plan":
+                pdir = videogen.project_dir(body.get("name", "project"))
+                plan = videogen.build_plan(body.get("script", ""),
+                                           body.get("topic", ""), _video_cfg())
+                videogen.save_plan(pdir, plan)
+                return self._send(200, json.dumps(plan, ensure_ascii=False))
+            if parsed.path == "/api/video/clip":
+                # 1クリップの字幕・読み上げ文・検索語・画像を差し替える
+                pdir = videogen.project_dir(body.get("name", "project"))
+                plan = videogen.load_plan(pdir)
+                if not plan:
+                    return self._send(404, json.dumps({"error": "台本がまだありません"}))
+                c = plan["clips"][int(body["index"])]
+                for key in ("caption", "speech", "keyword"):
+                    if key in body:
+                        c[key] = body[key]
+                if "caption" in body:
+                    c["caption_lines"] = body["caption"].split("\n")
+                if body.get("image_url"):
+                    path = os.path.join(pdir, "images", "%05d.jpg" % c["index"])
+                    videogen.download(body["image_url"], path)
+                    c["image"] = path
+                if body.get("speech") is not None:
+                    c["audio"] = None      # 読み上げ文が変わったので音声は作り直す
+                    c["duration"] = None
+                plan["stats"] = videogen.plan_stats(plan["clips"])
+                videogen.save_plan(pdir, plan)
+                return self._send(200, json.dumps(c, ensure_ascii=False))
+            if parsed.path == "/api/video/imagesearch":
+                cfg = _video_cfg()
+                if not cfg.get("pixabay_key"):
+                    return self._send(400, json.dumps(
+                        {"error": "config.json に pixabay_key がありません"},
+                        ensure_ascii=False))
+                hits = videogen.pixabay_search(
+                    body.get("keyword", ""), cfg["pixabay_key"],
+                    body.get("image_type", cfg["image_type"]))
+                return self._send(200, json.dumps(hits, ensure_ascii=False))
+            if parsed.path in ("/api/video/audio", "/api/video/images",
+                               "/api/video/render", "/api/video/all"):
+                pdir = videogen.project_dir(body.get("name", "project"))
+                plan = videogen.load_plan(pdir)
+                if not plan:
+                    return self._send(400, json.dumps(
+                        {"error": "先に台本を読み込んでください"}, ensure_ascii=False))
+                cfg = _video_cfg()
+                cfg.update(body.get("config", {}))
+                bgm = body.get("bgm", [])
+                what = parsed.path.rsplit("/", 1)[-1]
+
+                def job(progress, what=what, pdir=pdir, plan=plan, cfg=cfg, bgm=bgm):
+                    if what == "audio":
+                        videogen.make_audio(pdir, plan, cfg["voicevox_speaker"],
+                                            cfg.get("voice_speed", 1.0), progress,
+                                            overwrite=bool(body.get("overwrite")))
+                    elif what == "images":
+                        videogen.fetch_images(pdir, plan, cfg.get("pixabay_key"),
+                                              cfg["image_type"], progress,
+                                              overwrite=bool(body.get("overwrite")))
+                    elif what == "render":
+                        out, total = videogen.render(pdir, plan["clips"], cfg, bgm,
+                                                     progress=progress)
+                        _video_state.update(output=out, total_sec=total)
+                    else:
+                        out, total = videogen.run_all(pdir, plan, cfg, bgm, progress)
+                        _video_state.update(output=out, total_sec=total)
+
+                if not _video_run(job, what):
+                    return self._send(409, json.dumps(
+                        {"error": "いま別の処理を実行中です"}, ensure_ascii=False))
+                return self._send(200, json.dumps(_video_state, ensure_ascii=False))
             return self._send(404, json.dumps({"error": "not found"}))
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()

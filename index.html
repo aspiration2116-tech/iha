@@ -118,6 +118,7 @@ const TABS = [
   ["web",   "SNS・記事"],
   ["new",   "新着"],
   ["memo",  "台本メモ"],
+  ["vid",   "動画作成"],
   ["pat",   "タイトルの型"],
   ["topic", "キーワード"],
   ["ch",    "チャンネル"],
@@ -152,8 +153,9 @@ function render(){
   const p = document.getElementById("panel");
   if(!DATA){ p.innerHTML='<div class="empty">読み込み中…</div>'; return; }
   p.innerHTML = ({opp:vOpp, hot:vHot, srch:vSrch, web:vWeb, new:vNew, memo:vMemo,
-                  pat:vPat, topic:vTopic, ch:vCh, self:vSelf})[tab]();
+                  vid:vVid, pat:vPat, topic:vTopic, ch:vCh, self:vSelf})[tab]();
   if(tab==="memo") loadMemos();
+  if(tab==="vid") vidInit();
   if(tab==="srch") renderSearchResults();
   if(tab==="web") renderWebResults();
 }
@@ -418,6 +420,214 @@ function vNew(){
         ${actions(r)}
       </div>
     </div>`).join("");
+}
+
+// ===================== 動画作成 =====================
+const VID = {name:"", plan:null, env:null, timer:null, bgm:[]};
+
+function vVid(){
+  return lead("台本を貼ると、<b>1行1クリップに分けて・字幕を1〜2行に改行して・VOICEVOX の読み間違いを直して</b>から、"
+    + "音声とイラストをつけて mp4 に書き出します。各クリップは下の一覧で直せます。")
+  + `<div id="vidEnv" class="empty">準備を確かめています…</div>
+  <div class="card" style="display:block">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <input id="vidName" placeholder="動画の名前（フォルダ名になります）" style="flex:1;min-width:220px">
+      <input id="vidTopic" placeholder="画像を探すときの主題（例: 車 エアコン）" style="flex:1;min-width:220px">
+    </div>
+    <textarea id="vidScript" rows="8" placeholder="ここに台本を貼り付けます（1行が1クリップになります）"
+      style="width:100%"></textarea>
+    <div class="act" style="margin-top:8px">
+      <button class="main" onclick="vidPlan()">台本を読み込む</button>
+      <button onclick="vidJob('audio')">音声を作る</button>
+      <button onclick="vidJob('images')">画像を集める</button>
+      <button onclick="vidJob('render')">動画を書き出す</button>
+      <button class="primary" onclick="vidJob('all')">まとめて実行</button>
+    </div>
+  </div>
+  <div id="vidBgm"></div>
+  <div id="vidProg"></div>
+  <div id="vidStats"></div>
+  <div id="vidClips"></div>`;
+}
+
+async function vidInit(){
+  VID.name = localStorage.getItem("ytr_vid_name") || "";
+  const n = document.getElementById("vidName"); if(n) n.value = VID.name;
+  try{ VID.bgm = JSON.parse(localStorage.getItem("ytr_vid_bgm")||"[]"); }catch(e){ VID.bgm=[]; }
+  try{
+    VID.env = await (await fetch("/api/video/env")).json();
+    document.getElementById("vidEnv").outerHTML = vidEnvHtml(VID.env);
+  }catch(e){ document.getElementById("vidEnv").textContent = "状態を取れませんでした"; }
+  vidBgmRender();
+  if(VID.name){
+    const r = await fetch("/api/video/plan?name="+encodeURIComponent(VID.name));
+    const plan = await r.json();
+    if(plan && plan.clips){ VID.plan = plan; vidRenderPlan(); }
+  }
+  vidPoll();
+}
+
+function vidEnvHtml(e){
+  const row = (ok, label, help) =>
+    `<div style="margin:2px 0">${ok?"✅":"⚠️"} <b>${label}</b>${ok?"":` — <span class="sub">${help}</span>`}</div>`;
+  const spk = (e.speakers||[]).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  return `<div class="card" style="display:block" id="vidEnv">
+    ${row(e.voicevox, "VOICEVOX ENGINE", "アプリを起動してください（127.0.0.1:50021 で待ち受けます）")}
+    ${row(e.ffmpeg, "ffmpeg", "ターミナルで <code>brew install ffmpeg</code>")}
+    ${row(e.pixabay, "Pixabay の APIキー", "無料登録して config.json の pixabay_key に入れてください")}
+    ${row(e.pyopenjtalk, "読みチェック(pyopenjtalk)", "<code>pip3 install pyopenjtalk</code>（無くても動きますが精度が落ちます）")}
+    ${e.speakers && e.speakers.length ? `<div style="margin-top:6px">ナレーター
+      <select id="vidSpeaker">${spk}</select></div>` : ""}
+  </div>`;
+}
+
+// ---- BGM
+function vidBgmRender(){
+  const el = document.getElementById("vidBgm"); if(!el) return;
+  el.innerHTML = `<div class="card" style="display:block">
+    <b>BGM</b> <span class="sub">クリップ番号の範囲で指定します（1から数えます）。音量は 0〜1。</span>
+    <div id="vidBgmRows">${VID.bgm.map((b,i)=>`
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <input value="${esc(b.file)}" placeholder="音源のフルパス (.mp3)" style="flex:2;min-width:240px"
+          onchange="VID.bgm[${i}].file=this.value;vidBgmSave()">
+        <input type="number" value="${b.from}" style="width:70px" onchange="VID.bgm[${i}].from=+this.value;vidBgmSave()">
+        <span class="sub">〜</span>
+        <input type="number" value="${b.to}" style="width:70px" onchange="VID.bgm[${i}].to=+this.value;vidBgmSave()">
+        <input type="number" step="0.01" value="${b.volume}" style="width:80px"
+          onchange="VID.bgm[${i}].volume=+this.value;vidBgmSave()">
+        <button onclick="VID.bgm.splice(${i},1);vidBgmSave();vidBgmRender()">消す</button>
+      </div>`).join("")}</div>
+    <div class="act" style="margin-top:8px"><button onclick="vidBgmAdd()">BGMを足す</button></div>
+  </div>`;
+}
+function vidBgmAdd(){
+  const n = VID.plan ? VID.plan.clips.length : 1;
+  VID.bgm.push({file:"", from:1, to:n, volume:0.06});
+  vidBgmSave(); vidBgmRender();
+}
+function vidBgmSave(){ localStorage.setItem("ytr_vid_bgm", JSON.stringify(VID.bgm)); }
+
+// ---- 台本の読み込み
+async function vidPlan(){
+  const name = document.getElementById("vidName").value.trim();
+  const script = document.getElementById("vidScript").value;
+  if(!name || !script.trim()) return toast("名前と台本を入れてください");
+  VID.name = name; localStorage.setItem("ytr_vid_name", name);
+  const body = {name, script, topic: document.getElementById("vidTopic").value.trim()};
+  const r = await fetch("/api/video/plan", {method:"POST",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  VID.plan = await r.json();
+  vidRenderPlan();
+  toast(`${VID.plan.stats.clips}クリップに分けました`);
+}
+
+function vidRenderPlan(){
+  const st = VID.plan.stats;
+  document.getElementById("vidStats").innerHTML = `<div class="card" style="display:block">
+    <b>${st.clips}クリップ</b> ／ 1行 ${st.one_line}・2行 ${st.two_line}
+    ${st.over_line.length?`<span class="badge hot">3行 ${st.over_line.length}</span>`:""}
+    ${st.too_wide.length?`<span class="badge hot">幅超え ${st.too_wide.length}</span>`:""}
+    ／ ${st.chars_with_newline}字（改行込み）
+    ／ 読みを直した ${st.fixes}件
+    ${st.warns?`<span class="badge hot">要確認 ${st.warns}件</span>`:'<span class="badge">誤読なし</span>'}
+    ${VID.plan.scanned?"":' <span class="sub">※pyopenjtalk が無いので簡易チェックです</span>'}
+  </div>`;
+  document.getElementById("vidClips").innerHTML = VID.plan.clips.map(vidClipHtml).join("");
+}
+
+function vidClipHtml(c){
+  const warn = (c.warns||[]).map(w=>`<div class="sub" style="color:#b00">⚠️ ${esc(w.note)}</div>`).join("");
+  const fix  = (c.fixes||[]).map(f=>`<div class="sub">読みを直しました: ${esc(f.before)} → ${esc(f.after)}</div>`).join("");
+  const img  = c.image ? `<img src="/api/video/file?p=${encodeURIComponent(vidRel(c.image))}&t=${Date.now()}"
+                             style="width:120px;height:68px;object-fit:cover;border-radius:4px">`
+                       : `<div style="width:120px;height:68px;background:#eee;border-radius:4px"></div>`;
+  return `<div class="card" id="vidc${c.index}">
+    <div class="rank">${c.index+1}</div>
+    <div style="margin-right:8px">${img}</div>
+    <div class="body">
+      <textarea rows="2" style="width:100%" onchange="vidSet(${c.index},'caption',this.value)"
+        >${esc(c.caption)}</textarea>
+      <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+        <input value="${esc(c.speech)}" style="flex:2;min-width:220px"
+          onchange="vidSet(${c.index},'speech',this.value)" title="読み上げる文（字幕とは別）">
+        <input value="${esc(c.keyword||"")}" style="width:130px"
+          onchange="vidSet(${c.index},'keyword',this.value)" title="画像を探すことば">
+        <button onclick="vidPickImage(${c.index})">画像を選ぶ</button>
+        <span class="sub">${c.duration?c.duration.toFixed(1)+"秒":"音声まだ"}</span>
+      </div>
+      ${fix}${warn}
+    </div></div>`;
+}
+
+const vidRel = p => p.split("/video_work/")[1] || p;
+
+async function vidSet(i, key, val){
+  const body = {name: VID.name, index: i}; body[key] = val;
+  const r = await fetch("/api/video/clip", {method:"POST",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  VID.plan.clips[i] = await r.json();
+  document.getElementById("vidc"+i).outerHTML = vidClipHtml(VID.plan.clips[i]);
+}
+
+async function vidPickImage(i){
+  const kw = VID.plan.clips[i].keyword || VID.plan.topic || "";
+  const r = await fetch("/api/video/imagesearch", {method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({keyword: kw})});
+  const hits = await r.json();
+  if(hits.error) return toast(hits.error);
+  if(!hits.length) return toast(`「${kw}」の画像が見つかりませんでした`);
+  openModalHtml(`<h3>${esc(kw)} の画像</h3><div style="display:flex;flex-wrap:wrap;gap:8px">`
+    + hits.map(h=>`<img src="${h.preview}" style="width:150px;cursor:pointer;border-radius:4px"
+        onclick="vidUseImage(${i},'${h.large}')">`).join("") + `</div>`);
+}
+
+async function vidUseImage(i, url){
+  closeModal(); toast("取り込んでいます…");
+  const r = await fetch("/api/video/clip", {method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({name: VID.name, index: i, image_url: url})});
+  VID.plan.clips[i] = await r.json();
+  document.getElementById("vidc"+i).outerHTML = vidClipHtml(VID.plan.clips[i]);
+}
+
+// ---- 実行
+async function vidJob(what){
+  if(!VID.plan) return toast("先に台本を読み込んでください");
+  const sel = document.getElementById("vidSpeaker");
+  const config = sel ? {voicevox_speaker: +sel.value} : {};
+  const r = await fetch("/api/video/"+what, {method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({name: VID.name, config, bgm: VID.bgm.filter(b=>b.file)})});
+  const d = await r.json();
+  if(d.error) return toast(d.error);
+  vidPoll();
+}
+
+async function vidPoll(){
+  if(VID.timer) clearTimeout(VID.timer);
+  const el = document.getElementById("vidProg"); if(!el) return;
+  const s = await (await fetch("/api/video/progress")).json();
+  if(s.running){
+    el.innerHTML = `<div class="card" style="display:block">⏳ ${esc(s.message||s.step)}</div>`;
+    VID.timer = setTimeout(vidPoll, 1500);
+    return;
+  }
+  if(s.error){
+    el.innerHTML = `<div class="card" style="display:block;color:#b00">失敗しました: ${esc(s.error)}</div>`;
+  }else if(s.output){
+    const rel = vidRel(s.output);
+    el.innerHTML = `<div class="card" style="display:block">✅ できました（${Math.round(s.total_sec/60)}分${Math.round(s.total_sec%60)}秒）
+      <div style="margin-top:8px"><video src="/api/video/file?p=${encodeURIComponent(rel)}"
+        controls style="max-width:560px;width:100%"></video></div>
+      <div class="sub">${esc(s.output)}</div></div>`;
+  }else{
+    el.innerHTML = "";
+  }
+  if(VID.name){
+    const plan = await (await fetch("/api/video/plan?name="+encodeURIComponent(VID.name))).json();
+    if(plan && plan.clips){ VID.plan = plan; vidRenderPlan(); }
+  }
 }
 
 function vMemo(){
@@ -706,6 +916,10 @@ async function fav(cid, on){
 
 /* ---------------- 分析モーダル ---------------- */
 function closeModal(){ document.getElementById("overlay").classList.remove("show"); }
+function openModalHtml(html){
+  document.getElementById("modal").innerHTML = html;
+  document.getElementById("overlay").classList.add("show");
+}
 document.addEventListener("keydown", e => { if(e.key==="Escape") closeModal(); });
 
 function sparkline(snaps){
