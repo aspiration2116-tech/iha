@@ -268,15 +268,25 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def handle_one_request(self):
+        # ブラウザが読み込みを途中でやめると接続が切れる。実害がないので黙って閉じる
+        try:
+            BaseHTTPRequestHandler.handle_one_request(self)
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+
     def _send(self, code, body, ctype="application/json; charset=utf-8"):
         if isinstance(body, str):
             body = body.encode("utf-8")
-        self.send_response(code)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
