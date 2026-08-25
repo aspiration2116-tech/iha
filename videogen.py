@@ -512,6 +512,39 @@ def list_folder_images(folder):
     return [os.path.join(folder, n) for n in names]
 
 
+HOME = os.path.expanduser("~")
+
+
+def browse(path=""):
+    """フォルダの中を見る。ホームフォルダの外へは出ない。"""
+    path = os.path.realpath(os.path.expanduser(path or HOME))
+    if not (path == HOME or path.startswith(HOME + os.sep)) or not os.path.isdir(path):
+        path = HOME
+    folders = []
+    for n in sorted(os.listdir(path), key=lambda x: x.lower()):
+        if n.startswith("."):
+            continue
+        full = os.path.join(path, n)
+        if not os.path.isdir(full):
+            continue
+        try:
+            cnt = sum(1 for f in os.listdir(full)
+                      if f.lower().endswith(IMAGE_EXT) and not f.startswith("."))
+        except OSError:
+            cnt = 0
+        folders.append({"name": n, "path": full, "images": cnt})
+    here = sum(1 for f in os.listdir(path)
+               if f.lower().endswith(IMAGE_EXT) and not f.startswith("."))
+    parent = os.path.dirname(path)
+    return {
+        "path": path,
+        "label": path.replace(HOME, "ホーム", 1),
+        "parent": parent if path != HOME and parent.startswith(HOME) else "",
+        "folders": folders,
+        "images": here,
+    }
+
+
 def assign_folder_images(pdir, plan, folder, mode="order", progress=None,
                          overwrite=False):
     """Canva などで書き出した画像を各クリップに割り当てる。

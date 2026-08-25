@@ -333,6 +333,9 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/video/plan":
                 plan = videogen.load_plan(videogen.project_dir(qs.get("name", [""])[0]))
                 return self._send(200, json.dumps(plan or {}, ensure_ascii=False))
+            if path == "/api/video/browse":
+                return self._send(200, json.dumps(
+                    videogen.browse(qs.get("path", [""])[0]), ensure_ascii=False))
             if path == "/api/video/folder":
                 folder = qs.get("folder", [""])[0] or _video_cfg().get("image_folder", "")
                 try:

@@ -513,6 +513,7 @@ function vidSrcRender(){
         <input id="vidFolderPath" value="${esc(folder)}" style="flex:1;min-width:260px"
           placeholder="例: /Users/ihatakahiro/Downloads/canva"
           onchange="vidSrcSet('folder',this.value)">
+        <button class="main" onclick="vidBrowse()">フォルダを選ぶ</button>
         <button onclick="vidFolderCheck()">中身を見る</button>
       </div>
       <div style="margin-top:6px">
@@ -542,6 +543,30 @@ async function vidEnvRefresh(){
   const el = document.getElementById("vidEnv"); if(!el) return;
   VID.env = await (await fetch("/api/video/env")).json();
   el.outerHTML = vidEnvHtml(VID.env);
+}
+
+async function vidBrowse(path){
+  const d = await (await fetch("/api/video/browse?path="+encodeURIComponent(path||""))).json();
+  const up = d.parent ? `<button onclick="vidBrowse('${d.parent.replace(/'/g,"\\'")}')">↑ ひとつ上へ</button>` : "";
+  const rows = d.folders.length ? d.folders.map(f=>`
+    <div style="padding:6px 4px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px">
+      <a onclick="vidBrowse('${f.path.replace(/'/g,"\\'")}')" style="cursor:pointer;flex:1">
+        📁 ${esc(f.name)}</a>
+      <span class="sub">${f.images ? f.images+"枚" : ""}</span>
+    </div>`).join("") : '<div class="sub" style="padding:8px 0">この中にフォルダはありません</div>';
+  openModalHtml(`<h3>画像のフォルダを選ぶ</h3>
+    <div class="sub" style="margin-bottom:6px">いまここ: ${esc(d.label)}　${d.images?`（画像 ${d.images}枚）`:"（画像なし）"}</div>
+    <div style="margin-bottom:8px">${up}
+      <button class="primary" onclick="vidUseFolder('${d.path.replace(/'/g,"\\'")}')">このフォルダを使う</button></div>
+    <div style="max-height:50vh;overflow:auto">${rows}</div>`);
+}
+
+function vidUseFolder(path){
+  closeModal();
+  localStorage.setItem("ytr_vid_imgfolder", path);
+  const el = document.getElementById("vidFolderPath");
+  if(el) el.value = path;
+  vidFolderCheck();
 }
 
 async function vidFolderCheck(){
