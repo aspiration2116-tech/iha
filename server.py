@@ -7,6 +7,7 @@
 
 import json
 import os
+import shutil
 import threading
 import traceback
 import urllib.parse
@@ -332,6 +333,31 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/video/plan":
                 plan = videogen.load_plan(videogen.project_dir(qs.get("name", [""])[0]))
                 return self._send(200, json.dumps(plan or {}, ensure_ascii=False))
+            if path == "/api/video/folder":
+                folder = qs.get("folder", [""])[0] or _video_cfg().get("image_folder", "")
+                try:
+                    files = videogen.list_folder_images(folder)
+                except Exception as e:  # noqa: BLE001
+                    return self._send(400, json.dumps({"error": str(e)},
+                                                      ensure_ascii=False))
+                return self._send(200, json.dumps(
+                    {"folder": os.path.expanduser(folder),
+                     "files": [os.path.basename(f) for f in files]},
+                    ensure_ascii=False))
+            if path == "/api/video/folderfile":
+                # 指定された画像フォルダの中だけを表示する
+                folder = os.path.realpath(os.path.expanduser(
+                    qs.get("folder", [""])[0] or _video_cfg().get("image_folder", "")))
+                full = os.path.realpath(os.path.join(folder, qs.get("n", [""])[0]))
+                if not full.startswith(folder) or not os.path.isfile(full) \
+                        or not full.lower().endswith(videogen.IMAGE_EXT):
+                    return self._send(404, json.dumps({"error": "not found"}))
+                ext = full.rsplit(".", 1)[-1].lower()
+                ctype = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                         "webp": "image/webp", "gif": "image/gif",
+                         "bmp": "image/bmp"}.get(ext, "application/octet-stream")
+                with open(full, "rb") as f:
+                    return self._send(200, f.read(), ctype)
             if path == "/api/video/file":
                 # 作業フォルダの中だけを返す
                 rel = qs.get("p", [""])[0]
@@ -579,6 +605,14 @@ class Handler(BaseHTTPRequestHandler):
                         c[key] = body[key]
                 if "caption" in body:
                     c["caption_lines"] = body["caption"].split("\n")
+                if body.get("image_name") and body.get("folder"):
+                    src = os.path.join(os.path.expanduser(body["folder"]),
+                                       body["image_name"])
+                    dst = os.path.join(pdir, "images", "%05d%s"
+                                       % (c["index"], os.path.splitext(src)[1].lower()))
+                    shutil.copyfile(src, dst)
+                    c["image"] = dst
+                    c["image_name"] = body["image_name"]
                 if body.get("image_url"):
                     path = os.path.join(pdir, "images", "%05d.jpg" % c["index"])
                     videogen.download(body["image_url"], path)
@@ -599,6 +633,23 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("keyword", ""), cfg["pixabay_key"],
                     body.get("image_type", cfg["image_type"]))
                 return self._send(200, json.dumps(hits, ensure_ascii=False))
+            if parsed.path == "/api/video/folderassign":
+                pdir = videogen.project_dir(body.get("name", "project"))
+                plan = videogen.load_plan(pdir)
+                if not plan:
+                    return self._send(400, json.dumps(
+                        {"error": "先に台本を読み込んでください"}, ensure_ascii=False))
+                folder = body.get("folder") or _video_cfg().get("image_folder", "")
+                mode = body.get("mode", "order")
+
+                def job(progress, pdir=pdir, plan=plan, folder=folder, mode=mode):
+                    videogen.assign_folder_images(pdir, plan, folder, mode, progress,
+                                                  overwrite=bool(body.get("overwrite")))
+
+                if not _video_run(job, "folderassign"):
+                    return self._send(409, json.dumps(
+                        {"error": "いま別の処理を実行中です"}, ensure_ascii=False))
+                return self._send(200, json.dumps(_video_state, ensure_ascii=False))
             if parsed.path in ("/api/video/audio", "/api/video/images",
                                "/api/video/render", "/api/video/all"):
                 pdir = videogen.project_dir(body.get("name", "project"))

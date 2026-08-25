@@ -439,11 +439,12 @@ function vVid(){
     <div class="act" style="margin-top:8px">
       <button class="main" onclick="vidPlan()">台本を読み込む</button>
       <button onclick="vidJob('audio')">音声を作る</button>
-      <button onclick="vidJob('images')">画像を集める</button>
+      <button onclick="vidImages()">画像を入れる</button>
       <button onclick="vidJob('render')">動画を書き出す</button>
       <button class="primary" onclick="vidJob('all')">まとめて実行</button>
     </div>
   </div>
+  <div id="vidImgSrc"></div>
   <div id="vidBgm"></div>
   <div id="vidProg"></div>
   <div id="vidStats"></div>
@@ -458,6 +459,7 @@ async function vidInit(){
     VID.env = await (await fetch("/api/video/env")).json();
     document.getElementById("vidEnv").outerHTML = vidEnvHtml(VID.env);
   }catch(e){ document.getElementById("vidEnv").textContent = "状態を取れませんでした"; }
+  vidSrcRender();
   vidBgmRender();
   if(VID.name){
     const r = await fetch("/api/video/plan?name="+encodeURIComponent(VID.name));
@@ -484,6 +486,74 @@ function vidEnvHtml(e){
       <br>できた動画の置き場所: <code>${esc(e.work||"")}</code>
     </div>
   </div>`;
+}
+
+// ---- 画像の取り込み元
+function vidSrcRender(){
+  const el = document.getElementById("vidImgSrc"); if(!el) return;
+  const mode = localStorage.getItem("ytr_vid_imgmode") || "folder";
+  const folder = localStorage.getItem("ytr_vid_imgfolder") || "";
+  const assign = localStorage.getItem("ytr_vid_assign") || "order";
+  el.innerHTML = `<div class="card" style="display:block">
+    <b>画像の取り込み方</b>
+    <div style="margin-top:6px">
+      <label><input type="radio" name="imgmode" value="folder" ${mode==="folder"?"checked":""}
+        onchange="vidSrcSet('mode','folder')"> Canva などで書き出した画像のフォルダから</label>
+      &nbsp;&nbsp;
+      <label><input type="radio" name="imgmode" value="pixabay" ${mode==="pixabay"?"checked":""}
+        onchange="vidSrcSet('mode','pixabay')"> Pixabay から探す</label>
+    </div>
+    <div id="vidFolderBox" style="margin-top:6px;${mode==="folder"?"":"display:none"}">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <input id="vidFolderPath" value="${esc(folder)}" style="flex:1;min-width:260px"
+          placeholder="例: /Users/ihatakahiro/Downloads/canva"
+          onchange="vidSrcSet('folder',this.value)">
+        <button onclick="vidFolderCheck()">中身を見る</button>
+      </div>
+      <div style="margin-top:6px">
+        <label><input type="radio" name="assign" value="order" ${assign==="order"?"checked":""}
+          onchange="vidSrcSet('assign','order')"> 並び順のとおり上から配る</label>
+        &nbsp;&nbsp;
+        <label><input type="radio" name="assign" value="keyword" ${assign==="keyword"?"checked":""}
+          onchange="vidSrcSet('assign','keyword')"> ファイル名のことばで合わせる</label>
+      </div>
+      <div class="sub" style="margin-top:6px">
+        Canva で「ダウンロード → PNG → すべてのページ」で書き出して、
+        そのフォルダをここに指定します。画像が足りないときは先頭から繰り返し使います。
+      </div>
+      <div id="vidFolderList" class="sub" style="margin-top:6px"></div>
+    </div>
+  </div>`;
+}
+function vidSrcSet(k, v){
+  localStorage.setItem({mode:"ytr_vid_imgmode", folder:"ytr_vid_imgfolder",
+                        assign:"ytr_vid_assign"}[k], v);
+  if(k!=="folder") vidSrcRender();
+}
+const vidFolder = () => (document.getElementById("vidFolderPath")||{}).value
+  || localStorage.getItem("ytr_vid_imgfolder") || "";
+
+async function vidFolderCheck(){
+  const r = await fetch("/api/video/folder?folder="+encodeURIComponent(vidFolder()));
+  const d = await r.json();
+  const el = document.getElementById("vidFolderList");
+  if(d.error){ el.innerHTML = `<span style="color:#b00">${esc(d.error)}</span>`; return; }
+  el.innerHTML = `${d.files.length}枚見つかりました：` + d.files.slice(0,12).map(esc).join("、")
+    + (d.files.length>12 ? " …" : "");
+}
+
+async function vidImages(){
+  if(!VID.plan) return toast("先に台本を読み込んでください");
+  const mode = localStorage.getItem("ytr_vid_imgmode") || "folder";
+  if(mode === "pixabay") return vidJob("images");
+  const r = await fetch("/api/video/folderassign", {method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({name: VID.name, folder: vidFolder(),
+                          mode: localStorage.getItem("ytr_vid_assign") || "order",
+                          overwrite: true})});
+  const d = await r.json();
+  if(d.error) return toast(d.error);
+  vidPoll();
 }
 
 // ---- BGM
@@ -580,6 +650,16 @@ async function vidSet(i, key, val){
 }
 
 async function vidPickImage(i){
+  const mode = localStorage.getItem("ytr_vid_imgmode") || "folder";
+  if(mode === "folder"){
+    const f = vidFolder();
+    const d = await (await fetch("/api/video/folder?folder="+encodeURIComponent(f))).json();
+    if(d.error) return toast(d.error);
+    return openModalHtml(`<h3>フォルダの画像</h3><div style="display:flex;flex-wrap:wrap;gap:8px">`
+      + d.files.map(n=>`<img src="/api/video/folderfile?folder=${encodeURIComponent(f)}&n=${encodeURIComponent(n)}"
+          title="${esc(n)}" style="width:150px;cursor:pointer;border-radius:4px"
+          onclick="vidUseFolderImage(${i},'${n.replace(/'/g,"\\'")}')">`).join("") + `</div>`);
+  }
   const kw = VID.plan.clips[i].keyword || VID.plan.topic || "";
   const r = await fetch("/api/video/imagesearch", {method:"POST",
     headers:{"Content-Type":"application/json"},
@@ -590,6 +670,15 @@ async function vidPickImage(i){
   openModalHtml(`<h3>${esc(kw)} の画像</h3><div style="display:flex;flex-wrap:wrap;gap:8px">`
     + hits.map(h=>`<img src="${h.preview}" style="width:150px;cursor:pointer;border-radius:4px"
         onclick="vidUseImage(${i},'${h.large}')">`).join("") + `</div>`);
+}
+
+async function vidUseFolderImage(i, name){
+  closeModal();
+  const r = await fetch("/api/video/clip", {method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({name: VID.name, index: i, folder: vidFolder(), image_name: name})});
+  VID.plan.clips[i] = await r.json();
+  document.getElementById("vidc"+i).outerHTML = vidClipHtml(VID.plan.clips[i]);
 }
 
 async function vidUseImage(i, url){
@@ -606,6 +695,10 @@ async function vidJob(what){
   if(!VID.plan) return toast("先に台本を読み込んでください");
   const sel = document.getElementById("vidSpeaker");
   const config = sel ? {voicevox_speaker: +sel.value} : {};
+  if((localStorage.getItem("ytr_vid_imgmode") || "folder") === "folder"){
+    config.image_folder = vidFolder();
+    config.assign_mode = localStorage.getItem("ytr_vid_assign") || "order";
+  }
   const r = await fetch("/api/video/"+what, {method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({name: VID.name, config, bgm: VID.bgm.filter(b=>b.file)})});

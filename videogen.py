@@ -490,6 +490,63 @@ def download(url, path):
     return path
 
 
+# ---------------------------------------------------------------- 手持ちの画像
+
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")
+_NUM = re.compile(r"(\d+)")
+
+
+def _natural_key(name):
+    """「2」が「10」より前に来るように並べる。"""
+    return [int(t) if t.isdigit() else t.lower() for t in _NUM.split(name)]
+
+
+def list_folder_images(folder):
+    """フォルダの中の画像を、名前の順に並べて返す。"""
+    folder = os.path.expanduser(folder or "")
+    if not os.path.isdir(folder):
+        raise RuntimeError("フォルダが見つかりません: %s" % folder)
+    names = [n for n in os.listdir(folder)
+             if n.lower().endswith(IMAGE_EXT) and not n.startswith(".")]
+    names.sort(key=_natural_key)
+    return [os.path.join(folder, n) for n in names]
+
+
+def assign_folder_images(pdir, plan, folder, mode="order", progress=None,
+                         overwrite=False):
+    """Canva などで書き出した画像を各クリップに割り当てる。
+
+    mode="order"   … 並び順のとおり、上から順に配る(足りなければ繰り返す)
+    mode="keyword" … ファイル名にクリップの検索語が入っていればそれを優先し、
+                     見つからないクリップには順番に配る
+    """
+    files = list_folder_images(folder)
+    if not files:
+        raise RuntimeError("そのフォルダに画像がありません: %s" % folder)
+    n = len(plan["clips"])
+    used = 0
+    for c in plan["clips"]:
+        if c.get("image") and not overwrite:
+            continue
+        pick = None
+        if mode == "keyword":
+            kw = (c.get("keyword") or "").strip()
+            if kw:
+                pick = next((f for f in files
+                             if kw in os.path.basename(f)), None)
+        if pick is None:
+            pick = files[used % len(files)]
+            used += 1
+        dst = os.path.join(pdir, "images", "%05d%s"
+                           % (c["index"], os.path.splitext(pick)[1].lower()))
+        shutil.copyfile(pick, dst)
+        c["image"] = dst
+        c["image_name"] = os.path.basename(pick)
+        if progress:
+            progress("画像を割り当てています %d/%d" % (c["index"] + 1, n))
+    return save_plan(pdir, plan)
+
+
 # ---------------------------------------------------------------- ASS 字幕
 
 def _ass_color(hexstr, alpha="00"):
@@ -743,10 +800,13 @@ def run_all(pdir, plan, cfg, bgm_rules=None, progress=None):
     """音声 → 画像 → 書き出し まで通す。"""
     cfg = dict(DEFAULTS, **(cfg or {}))
     make_audio(pdir, plan, cfg["voicevox_speaker"], cfg.get("voice_speed", 1.0), progress)
-    if cfg.get("pixabay_key"):
+    if cfg.get("image_folder"):
+        assign_folder_images(pdir, plan, cfg["image_folder"],
+                             cfg.get("assign_mode", "order"), progress)
+    elif cfg.get("pixabay_key"):
         fetch_images(pdir, plan, cfg["pixabay_key"], cfg["image_type"], progress)
     elif progress:
-        progress("pixabay_key が無いので画像は入れずに書き出します")
+        progress("画像の取り込み先が未設定なので、画像は入れずに書き出します")
     out, total = render(pdir, plan["clips"], cfg, bgm_rules, progress=progress)
     plan["output"] = out
     plan["total_sec"] = total
