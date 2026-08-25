@@ -470,14 +470,19 @@ async function vidInit(){
 }
 
 function vidEnvHtml(e){
-  const row = (ok, label, help) =>
-    `<div style="margin:2px 0">${ok?"✅":"⚠️"} <b>${label}</b>${ok?"":` — <span class="sub">${help}</span>`}</div>`;
+  const row = (ok, label, help, opt) =>
+    `<div style="margin:2px 0">${ok?"✅":(opt?"○":"⚠️")} <b>${label}</b>${ok?
+      (help?` — <span class="sub">${help}</span>`:"") : ` — <span class="sub">${help}</span>`}</div>`;
   const spk = (e.speakers||[]).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  const usePix = (localStorage.getItem("ytr_vid_imgmode") || "folder") === "pixabay";
   return `<div class="card" style="display:block" id="vidEnv">
-    ${row(e.voicevox, "VOICEVOX ENGINE", "アプリを起動してください（127.0.0.1:50021 で待ち受けます）")}
-    ${row(e.ffmpeg, "ffmpeg", "ターミナルで <code>brew install ffmpeg</code>")}
-    ${row(e.pixabay, "Pixabay の APIキー", "無料登録して config.json の pixabay_key に入れてください")}
-    ${row(e.pyopenjtalk, "読みチェック(pyopenjtalk)", "<code>pip3 install pyopenjtalk</code>（無くても動きますが精度が落ちます）")}
+    ${row(e.voicevox, "VOICEVOX ENGINE", "音声を作るのに必要です。アプリを起動してください（127.0.0.1:50021 で待ち受けます）")}
+    ${row(e.ffmpeg, "ffmpeg", e.ffmpeg ? esc(e.ffmpeg_path)
+      : "動画の書き出しに必要です。ターミナルで <code>brew install ffmpeg</code>、または ffmpeg の実行ファイルをこのツールのフォルダに置いてください")}
+    ${usePix ? row(e.pixabay, "Pixabay の APIキー",
+        "無料登録して config.json の pixabay_key に入れてください")
+      : row(true, "画像", "Canva などのフォルダから取り込む設定です（Pixabay のキーは不要）")}
+    ${row(e.pyopenjtalk, "読みチェック(pyopenjtalk)", "<code>pip3 install pyopenjtalk</code>（無くても動きますが、辞書に無い誤読を拾えません）", true)}
     ${e.speakers && e.speakers.length ? `<div style="margin-top:6px">ナレーター
       <select id="vidSpeaker">${spk}</select></div>` : ""}
     <div class="sub" style="margin-top:8px">
@@ -528,10 +533,16 @@ function vidSrcRender(){
 function vidSrcSet(k, v){
   localStorage.setItem({mode:"ytr_vid_imgmode", folder:"ytr_vid_imgfolder",
                         assign:"ytr_vid_assign"}[k], v);
-  if(k!=="folder") vidSrcRender();
+  if(k!=="folder"){ vidSrcRender(); vidEnvRefresh(); }
 }
 const vidFolder = () => (document.getElementById("vidFolderPath")||{}).value
   || localStorage.getItem("ytr_vid_imgfolder") || "";
+
+async function vidEnvRefresh(){
+  const el = document.getElementById("vidEnv"); if(!el) return;
+  VID.env = await (await fetch("/api/video/env")).json();
+  el.outerHTML = vidEnvHtml(VID.env);
+}
 
 async function vidFolderCheck(){
   const r = await fetch("/api/video/folder?folder="+encodeURIComponent(vidFolder()));

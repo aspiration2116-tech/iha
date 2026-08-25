@@ -595,8 +595,31 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 # ---------------------------------------------------------------- ffmpeg
 
-def have(cmd):
-    return shutil.which(cmd) is not None
+def ffmpeg_path(cfg=None):
+    """ffmpeg を探す。PATH に無くても、よくある場所とこのフォルダの中を見る。"""
+    cfg = cfg or {}
+    for c in (cfg.get("ffmpeg_path"), shutil.which("ffmpeg"),
+              "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg",
+              os.path.join(BASE, "ffmpeg")):
+        if not c:
+            continue
+        c = os.path.expanduser(c)
+        if not os.path.isfile(c):
+            continue
+        if not os.access(c, os.X_OK):
+            try:                       # ダウンロードした実行ファイルは権限が落ちている
+                os.chmod(c, 0o755)
+            except OSError:
+                continue
+        return c
+    return None
+
+
+FFMPEG_HELP = (
+    "ffmpeg が見つかりません。次のどちらかで用意してください。\n"
+    "(1) ターミナルで brew install ffmpeg\n"
+    "(2) ffmpeg の実行ファイルをこのツールのフォルダに置く"
+    "（置いたあと、ターミナルで xattr -d com.apple.quarantine ffmpeg が必要な場合があります）")
 
 
 def _concat_file(clips, cfg, path, fallback_image):
@@ -617,7 +640,7 @@ def _concat_file(clips, cfg, path, fallback_image):
 def solid_image(path, cfg, color="#f2ede4"):
     """画像が無いクリップ用の下地。ffmpeg で1枚作る。"""
     subprocess.run(
-        ["ffmpeg", "-y", "-f", "lavfi", "-i",
+        [ffmpeg_path(cfg) or "ffmpeg", "-y", "-f", "lavfi", "-i",
          "color=c=%s:s=%dx%d" % (color.lstrip("#"), cfg["width"], cfg["height"]),
          "-frames:v", "1", path],
         check=True, capture_output=True)
@@ -659,8 +682,9 @@ def render(project_dir, clips, cfg=None, bgm_rules=None, out_name="out.mp4",
     """画像 + 音声 + 字幕 (+ BGM) を mp4 にする。"""
     cfg = dict(DEFAULTS, **(cfg or {}))
     bgm_rules = [r for r in (bgm_rules or []) if r.get("file")]
-    if not have("ffmpeg"):
-        raise RuntimeError("ffmpeg が見つかりません。brew install ffmpeg を実行してください")
+    ff = ffmpeg_path(cfg)
+    if not ff:
+        raise RuntimeError(FFMPEG_HELP)
 
     def say(m):
         if progress:
@@ -696,7 +720,7 @@ def render(project_dir, clips, cfg=None, bgm_rules=None, out_name="out.mp4",
     else:
         amap = "1:a"
 
-    cmd = (["ffmpeg", "-y"] + inputs
+    cmd = ([ff, "-y"] + inputs
            + ["-filter_complex", ";".join(parts),
               "-map", "[v]", "-map", amap,
               "-c:v", "libx264", "-preset", "medium", "-crf", "20",
@@ -715,8 +739,10 @@ def render(project_dir, clips, cfg=None, bgm_rules=None, out_name="out.mp4",
 
 def check_env(cfg=None):
     cfg = dict(DEFAULTS, **(cfg or {}))
-    out = {"ffmpeg": have("ffmpeg"), "voicevox": False, "speakers": [],
-           "pixabay": bool(cfg.get("pixabay_key")), "pyopenjtalk": False}
+    ff = ffmpeg_path(cfg)
+    out = {"ffmpeg": bool(ff), "ffmpeg_path": ff or "", "voicevox": False,
+           "speakers": [], "pixabay": bool(cfg.get("pixabay_key")),
+           "pyopenjtalk": False}
     try:
         out["speakers"] = voicevox_speakers()
         out["voicevox"] = True

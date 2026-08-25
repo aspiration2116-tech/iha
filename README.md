@@ -55,7 +55,7 @@
 | | 用途 | 入れ方 |
 |---|---|---|
 | VOICEVOX ENGINE | 音声合成 | [voicevox.hiroshiba.jp](https://voicevox.hiroshiba.jp) から入れて起動しておく（127.0.0.1:50021 で待ち受ける） |
-| ffmpeg | 動画の書き出し | `brew install ffmpeg` |
+| ffmpeg | 動画の書き出し | `brew install ffmpeg`。Homebrew が無ければ、ffmpeg の実行ファイルをこのツールのフォルダに置いてもよい（`config.json` の `video.ffmpeg_path` に場所を書いてもよい） |
 | Pixabay の APIキー | イラストの自動取得 | [pixabay.com](https://pixabay.com) に無料登録 → `config.json` の `pixabay_key` に入れる |
 | pyopenjtalk（任意） | 読みの全行チェック | `pip3 install pyopenjtalk`。無くても動くが、簡易チェックになる |
 
@@ -94,7 +94,7 @@
 ### うまくいかないとき
 
 - **音声が作れない** … VOICEVOX を起動しているか。ナレーターの選択が空なら、起動後にタブを開き直す
-- **書き出しで失敗する** … `ffmpeg` が入っているか。字幕が出ないときは `config.json` の `caption_font` を実際に入っているフォント名に（`fc-list` や Font Book で確認）
+- **書き出しで失敗する** … `ffmpeg` が見つかっているか（準備状況の欄に見つけた場所が出る）。フォルダに置いた実行ファイルを使う場合、macOS に止められたら `xattr -d com.apple.quarantine ffmpeg` が要ることがある。字幕が出ないときは `config.json` の `caption_font` を実際に入っているフォント名に（`fc-list` や Font Book で確認）
 - **画像が入らない** … `pixabay_key` を入れたか。ことばによっては候補が出ないので、クリップごとの検索語を変えるか主題を使う
 - **やり直したい** … `video_work/<名前>/` を消せば最初から。読み上げ文を直したクリップは音声だけ作り直される
 
