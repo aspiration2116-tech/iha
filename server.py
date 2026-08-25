@@ -312,6 +312,8 @@ class Handler(BaseHTTPRequestHandler):
                                                   ensure_ascii=False))
             if path == "/api/video/env":
                 env = videogen.check_env(_video_cfg())
+                env["folder"] = BASE
+                env["work"] = videogen.WORK
                 env["projects"] = sorted(os.listdir(videogen.WORK)) \
                     if os.path.isdir(videogen.WORK) else []
                 return self._send(200, json.dumps(env, ensure_ascii=False))

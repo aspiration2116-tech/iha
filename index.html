@@ -478,6 +478,11 @@ function vidEnvHtml(e){
     ${row(e.pyopenjtalk, "読みチェック(pyopenjtalk)", "<code>pip3 install pyopenjtalk</code>（無くても動きますが精度が落ちます）")}
     ${e.speakers && e.speakers.length ? `<div style="margin-top:6px">ナレーター
       <select id="vidSpeaker">${spk}</select></div>` : ""}
+    <div class="sub" style="margin-top:8px">
+      このツールのフォルダ: <code id="vidFolder">${esc(e.folder||"")}</code>
+      <button onclick="vidCopyFolder()">コピー</button>
+      <br>できた動画の置き場所: <code>${esc(e.work||"")}</code>
+    </div>
   </div>`;
 }
 
@@ -560,6 +565,11 @@ function vidClipHtml(c){
 }
 
 const vidRel = p => p.split("/video_work/")[1] || p;
+
+async function vidCopyFolder(){
+  await writeClip(document.getElementById("vidFolder").textContent);
+  toast("フォルダの場所をコピーしました。Finder で ⇧⌘G を押して貼り付けると開きます");
+}
 
 async function vidSet(i, key, val){
   const body = {name: VID.name, index: i}; body[key] = val;
