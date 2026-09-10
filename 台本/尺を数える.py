@@ -15,7 +15,8 @@ CPM = 320  # 1分あたりの文字数。50〜60代向けのゆったりした�
 
 
 def mmss(minutes: float) -> str:
-    return f"{int(minutes)}:{round((minutes - int(minutes)) * 60):02d}"
+    total = round(minutes * 60)  # 秒に丸めてから分秒に割る（59.7秒が "9:60" になるのを防ぐ）
+    return f"{total // 60}:{total % 60:02d}"
 
 
 def count(section_body: str) -> int:
