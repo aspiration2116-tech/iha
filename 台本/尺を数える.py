@@ -11,7 +11,10 @@
 import re
 import sys
 
-CPM = 320  # 1分あたりの文字数。50〜60代向けのゆったりした読みの目安
+# 1分あたりの文字数。既定の354は自チャンネルの実測値
+# （字幕3,978字 ÷ 675秒。企画/2026-09_自チャンネル台本分析.md ②）。
+# 旧台本は毎分320字で時刻を振ってあるので、そちらは --cpm 320 で通すこと。
+CPM = 354
 
 
 def mmss(minutes: float) -> str:
@@ -32,12 +35,21 @@ def count(section_body: str) -> int:
 
 
 def main() -> None:
+    global CPM
     path = sys.argv[1]
     write = "--write" in sys.argv
+    if "--cpm" in sys.argv:
+        CPM = int(sys.argv[sys.argv.index("--cpm") + 1])
     txt = open(path, encoding="utf-8").read()
 
-    body = txt[txt.index("## 【"):txt.index("## タイトル・サムネ")]
-    sections = [s for s in re.split(r"\n(?=## )", body) if s.strip()]
+    # 「## 【時刻】…」の見出しが続くあいだが本編。時刻の付かない ## が出たら終わり
+    start = txt.index("## 【")
+    sections = []
+    for sec in re.split(r"\n(?=## )", txt[start:]):
+        if not sec.startswith("## 【"):
+            break
+        if sec.strip():
+            sections.append(sec)
 
     total = sum(count(s) for s in sections)
     print(f"合計 {total:,}字 → {mmss(total / CPM)}（{CPM}字/分）")
