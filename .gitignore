@@ -1,0 +1,10 @@
+# 実行のたびに変わる生成物・ログ(ソースではないためgit管理から除外)
+research.db
+latest.json
+*.log
+ネタ候補.md
+
+# OS/環境
+__pycache__/
+*.pyc
+.DS_Store
