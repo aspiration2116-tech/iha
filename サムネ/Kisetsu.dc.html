@@ -12,8 +12,8 @@
     body { margin: 0; }
     a { color: #ffd400; } a:hover { color: #ffe866; }
     .jp { font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; }
-    .out { -webkit-text-stroke: 14px #0d0d0d; paint-order: stroke fill; }
-    .out-s { -webkit-text-stroke: 9px #0d0d0d; paint-order: stroke fill; }
+    .out { -webkit-text-stroke: 12px #0d0d0d; paint-order: stroke fill; }
+    .out-s { -webkit-text-stroke: 7px #0d0d0d; paint-order: stroke fill; }
   </style>
 </helmet>
 
@@ -40,21 +40,25 @@
     <b style="color:#ffd400">背景（右）</b> 同じ布団が室内。秋の斜めの光にホコリが濃く舞う。<b>中央は空ける。</b>
   </div>
 
+  <!-- 中央のスクリム：明るい夏側に載る黄文字の輝度差を確保する -->
+  <div style="position: absolute; left: 470px; top: 0; width: 340px; height: 720px;
+      background: linear-gradient(90deg, rgba(10,9,7,0) 0%, rgba(10,9,7,0.55) 26%, rgba(10,9,7,0.55) 74%, rgba(10,9,7,0) 100%);"></div>
+
   <!-- 左：夏 -->
-  <div class="out-s" style="position: absolute; left: 72px; top: 214px; writing-mode: vertical-rl;
+  <div class="out-s" style="position: absolute; left: 72px; top: 214px; writing-mode: vertical-rl; text-orientation: upright;
       font-weight: 900; font-size: 62px; line-height: 1.06; color: #ffffff; letter-spacing: 0.02em;">真夏</div>
 
   <!-- 中央：主コピー -->
-  <div style="position: absolute; left: 0; right: 0; top: 168px; display: flex; justify-content: center;
+  <div style="position: absolute; left: 0; right: 0; top: 96px; display: flex; justify-content: center;
       flex-direction: row-reverse; gap: 8px;">
-    <div class="out" style="writing-mode: vertical-rl; font-weight: 900; font-size: 96px; line-height: 1.04;
+    <div class="out" style="writing-mode: vertical-rl; text-orientation: upright; font-weight: 900; font-size: 96px; line-height: 1.04;
         letter-spacing: 0.02em; color: #ffffff;">9月の布団は</div>
-    <div class="out" style="writing-mode: vertical-rl; font-weight: 900; font-size: 96px; line-height: 1.04;
+    <div class="out" style="writing-mode: vertical-rl; text-orientation: upright; font-weight: 900; font-size: 96px; line-height: 1.04;
         letter-spacing: 0.02em; color: #ffd400;">夏より汚い</div>
   </div>
 
   <!-- 右：9月 -->
-  <div class="out-s" style="position: absolute; right: 72px; top: 214px; writing-mode: vertical-rl;
+  <div class="out-s" style="position: absolute; right: 72px; top: 214px; writing-mode: vertical-rl; text-orientation: upright;
       font-weight: 900; font-size: 62px; line-height: 1.06; color: #ffd400; letter-spacing: 0.02em;">9月</div>
 
   <div style="position: absolute; right: 12px; bottom: 12px; width: 210px; height: 54px;
