@@ -1179,6 +1179,16 @@ def _extract_metrics(con, text, d, now):
     sub(r"血圧\s*(\d{2,3})\s*[/ ]\s*(\d{2,3})(?:\s*(?:脈拍?)?\s*(\d{2,3}))?", bp)
     sub(r"(?<![0-9x])(\d{2,3})\s*/\s*(\d{2,3})(?![0-9])(?:\s*(?:脈拍?)\s*(\d{2,3}))?", bp)
 
+    def bp_half(m):
+        v = int(m.group(1))
+        if not (60 <= v <= 260):
+            return m.group(0)
+        done.append("⚠ 血圧 %d は上の値だけです。記録していません — "
+                    "「血圧 %d 92」のように下の値も入れてください" % (v, v))
+        return ""
+
+    sub(r"血圧\s*(\d{2,3})(?![0-9/])", bp_half)
+
     def sleep(m):
         bed, wake = m.group(1), m.group(2)
         mins = sleep_minutes(bed, wake)
