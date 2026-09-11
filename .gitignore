@@ -1,4 +1,5 @@
-# 記録データベースと実行時のログ(個人の健康記録なので共有しない)
+# 個人の健康記録。このリポジトリは公開なので、身体の数値は絶対にコミットしない
+coach/profile.json
 coach/coach.db
 coach/coach.db-wal
 coach/coach.db-shm

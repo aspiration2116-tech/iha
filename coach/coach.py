@@ -24,6 +24,7 @@ from datetime import date, datetime, timedelta
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE, "coach.db")
 FOODS_PATH = os.path.join(BASE, "foods.json")
+PROFILE_PATH = os.path.join(BASE, "profile.json")
 
 # ── 定数 ───────────────────────────────────────────────────────────────────
 
@@ -49,12 +50,16 @@ KCAL_FLOOR = {"male": 1500, "female": 1200}
 # 1日の赤字はTDEEの何割までにするか(急激な減量を防ぐ安全弁)
 MAX_DEFICIT_RATIO = 0.25
 
+# 既定値はあくまで初期表示用のプレースホルダ。実際の値は
+#   ・同じフォルダの profile.json (gitignore済み。個人の値をここに置ける)
+#   ・または画面の「設定」タブ(coach.db に入る。これもgitignore済み)
+# のどちらかで上書きする。身体の数値をリポジトリに残さないための分け方。
 DEFAULT_PROFILE = {
-    "height": 171.0,
-    "start_weight": 100.0,
+    "height": 170.0,
+    "start_weight": 80.0,
     "goal_weight": 70.0,
     "sex": "male",
-    "age": 33,
+    "age": 40,
     "activity": "low",
     "pace": "standard",
     "salt_target": 6.0,          # g/日。高血圧の減塩目標(JSH2019)
@@ -144,7 +149,12 @@ def init_db(con):
     if con.execute("SELECT COUNT(*) FROM foods").fetchone()[0] == 0:
         load_builtin_foods(con)
     if con.execute("SELECT COUNT(*) FROM profile").fetchone()[0] == 0:
-        set_profile(con, DEFAULT_PROFILE)
+        prof = dict(DEFAULT_PROFILE)
+        if os.path.exists(PROFILE_PATH):
+            with open(PROFILE_PATH, encoding="utf-8") as f:
+                prof.update({k: v for k, v in json.load(f).items() if k in DEFAULT_PROFILE})
+            prof["profile_confirmed"] = 1
+        set_profile(con, prof)
 
 
 def load_builtin_foods(con):
@@ -895,6 +905,285 @@ def build(con, d=None):
     return data
 
 
+# ── テキストを1行投げて記録する ───────────────────────────────────────────
+#
+# 「朝 ご飯 納豆 味噌汁」「昼 ラーメン」「三頭筋 3x50 腹筋 2x50」「体重 98.4」
+# のように書いた1行を解釈して、該当するテーブルに入れる。UIを開かずに
+# その場で記録できるほうが続くので、入力の敷居をできるだけ下げる。
+
+import re
+
+SLOT_WORDS = {
+    "朝": "朝", "朝食": "朝", "あさ": "朝", "morning": "朝",
+    "昼": "昼", "昼食": "昼", "ひる": "昼", "ランチ": "昼", "lunch": "昼",
+    "夕": "夕", "夕食": "夕", "夜": "夕", "晩": "夕", "夜食": "夕", "夕飯": "夕", "晩ご飯": "夕",
+    "間食": "間食", "おやつ": "間食", "軽食": "間食",
+}
+
+# 略称・言い換え → 種目名
+EX_ALIAS = {
+    "三頭筋": "トライセプスプレスダウン", "三頭": "トライセプスプレスダウン",
+    "トライセプス": "トライセプスプレスダウン", "プレスダウン": "トライセプスプレスダウン",
+    "二頭筋": "アームカール", "二頭": "アームカール", "カール": "アームカール",
+    "腹筋": "腹筋(自重)", "腹": "腹筋(自重)",
+    "クランチ": "アブドミナルクランチ", "アブドミナル": "アブドミナルクランチ",
+    "脚": "レッグプレス", "足": "レッグプレス", "レッグプレス": "レッグプレス",
+    "スクワット": "スクワット(スミス)",
+    "背中": "ラットプルダウン", "ラットプル": "ラットプルダウン", "懸垂": "ラットプルダウン",
+    "ロー": "シーテッドロー", "ローイング": "シーテッドロー",
+    "胸": "チェストプレス", "ベンチ": "ベンチプレス",
+    "肩": "ショルダープレス", "レイズ": "サイドレイズ",
+    "デッド": "デッドリフト",
+    "エクステンション": "レッグエクステンション", "カーフ": "カーフレイズ",
+    "有酸素": "トレッドミル(早歩き)", "ウォーキング": "トレッドミル(早歩き)",
+    "歩き": "トレッドミル(早歩き)", "早歩き": "トレッドミル(早歩き)",
+    "トレッドミル": "トレッドミル(早歩き)", "ランニング": "トレッドミル(早歩き)",
+    "エアロバイク": "バイク", "チャリ": "バイク",
+}
+
+
+def _norm(t):
+    return t.replace("　", " ").replace("×", "x").replace("X", "x").strip()
+
+
+def find_food(con, token):
+    """食品名のゆるい一致。完全一致 > 前方一致 > 部分一致 の順で、よく使う順に選ぶ。"""
+    token = token.strip()
+    if not token:
+        return None
+    for sql, arg in (("name = ?", token),
+                     ("name LIKE ?", token + "%"),
+                     ("name LIKE ?", "%" + token + "%")):
+        rows = con.execute(
+            "SELECT * FROM foods WHERE " + sql + " ORDER BY used DESC, id",
+            (arg,)).fetchall()
+        if rows:
+            return rows[0]
+    return None
+
+
+def parse_log(con, text, d=None):
+    """1行のテキストを解釈して記録する。何をしたかのリストを返す。
+
+    区切り文字に頼らず、体重・血圧・睡眠・歩数のような形の決まったものを先に
+    抜き取ってから、残りを区分・種目・食品として読む。1行にいくつ混ざっていても
+    拾えるようにするため。
+    """
+    d = d or date.today().isoformat()
+    now = datetime.now().isoformat(timespec="seconds")
+    text = _norm(text)
+
+    text, done = _extract_metrics(con, text, d, now)
+
+    unknown = []
+    slot = None
+    for seg in re.split(r"[、,／/\n]+", text):
+        # 「朝 … 昼 …」のように1行に区分が複数あっても切り替わるようにする
+        groups, cur = [], []
+        for t in seg.split():
+            if t in SLOT_WORDS:
+                if cur:
+                    groups.append((slot, cur))
+                    cur = []
+                slot = SLOT_WORDS[t]
+            else:
+                cur.append(t)
+        if cur:
+            groups.append((slot, cur))
+
+        for g_slot, toks in groups:
+            hints = {t for t in toks if t in FOOD_HINTS}
+            toks = [t for t in toks if t not in FOOD_HINTS]
+            entries, rest = _scan_exercises(con, toks, d, now)
+            done += entries
+            done, unknown = _consume_foods(con, rest, g_slot or _slot_by_clock(), d, now,
+                                           done, unknown, hints)
+
+    con.commit()
+    return {"done": done, "unknown": unknown, "date": d}
+
+
+# 同じ料理でも食べ方で塩分が大きく変わるものは、書き添えられていれば拾う
+FOOD_HINTS = {"汁残し": "汁を残す", "汁を残す": "汁を残す", "スープ残し": "汁を残す",
+              "汁なし": "汁を残す"}
+
+
+def _consume_foods(con, toks, slot, d, now, done, unknown, hints=None):
+    """食品名は「鶏むね肉 皮なし」のように空白を含むので、長い並びから順に試す。"""
+    i = 0
+    while i < len(toks):
+        hit = False
+        for n in (3, 2, 1):
+            if i + n > len(toks):
+                continue
+            chunk = list(toks[i:i + n])
+            qty = 1.0
+            m = re.match(r"^(.*?)x([0-9.]+)$", chunk[-1])
+            if m and m.group(1):
+                chunk[-1], qty = m.group(1), float(m.group(2))
+            phrase = " ".join(chunk)
+            if n > 1 and not find_food(con, phrase):
+                continue
+            ok, msg = _parse_food(con, phrase, slot, d, now, qty, hints)
+            if ok or n == 1:
+                (done if ok else unknown).append(msg)
+                i += n
+                hit = True
+                break
+        if not hit:
+            i += 1
+    return done, unknown
+
+
+def _extract_metrics(con, text, d, now):
+    """体重・体組成・血圧・睡眠・歩数を、書かれている位置に関係なく抜き取る。"""
+    done = []
+
+    def day_set(col, val, label):
+        con.execute("INSERT OR IGNORE INTO days(date) VALUES(?)", (d,))
+        con.execute("UPDATE days SET %s=?, updated_at=? WHERE date=?" % col, (val, now, d))
+        done.append(label)
+
+    def sub(pattern, fn):
+        nonlocal text
+        text = re.sub(pattern, fn, text)
+
+    sub(r"体重\s*([0-9.]+)\s*(?:kg|キロ)?",
+        lambda m: day_set("weight", float(m.group(1)), "体重 %.1fkg" % float(m.group(1))) or "")
+    sub(r"体脂肪(?:率)?\s*([0-9.]+)\s*%?",
+        lambda m: day_set("body_fat", float(m.group(1)), "体脂肪率 %.1f%%" % float(m.group(1))) or "")
+    sub(r"筋肉(?:量)?\s*([0-9.]+)\s*(?:kg|キロ)?",
+        lambda m: day_set("muscle_kg", float(m.group(1)), "筋肉量 %.1fkg" % float(m.group(1))) or "")
+
+    def bp(m):
+        sys_v, dia_v = int(m.group(1)), int(m.group(2))
+        if not (60 <= sys_v <= 260 and 30 <= dia_v <= 160):
+            return m.group(0)
+        pulse = int(m.group(3)) if m.group(3) else None
+        sl = "晩" if datetime.now().hour >= 15 else "朝"
+        con.execute("INSERT INTO bp(date,slot,systolic,diastolic,pulse,created_at)"
+                    " VALUES(?,?,?,?,?,?)", (d, sl, sys_v, dia_v, pulse, now))
+        cat, _ = bp_category(sys_v, dia_v)
+        done.append("血圧 %s %d/%d%s (%s)"
+                    % (sl, sys_v, dia_v, " 脈%d" % pulse if pulse else "", cat))
+        return ""
+
+    # 「血圧 145 92」「血圧145/92 脈78」「145/92」のどれでも
+    sub(r"血圧\s*(\d{2,3})\s*[/ ]\s*(\d{2,3})(?:\s*(?:脈拍?)?\s*(\d{2,3}))?", bp)
+    sub(r"(?<![0-9x])(\d{2,3})\s*/\s*(\d{2,3})(?![0-9])(?:\s*(?:脈拍?)\s*(\d{2,3}))?", bp)
+
+    def sleep(m):
+        bed, wake = m.group(1), m.group(2)
+        mins = sleep_minutes(bed, wake)
+        con.execute(
+            "INSERT INTO sleep(date,bedtime,waketime,minutes,updated_at) VALUES(?,?,?,?,?)"
+            " ON CONFLICT(date) DO UPDATE SET bedtime=excluded.bedtime,"
+            " waketime=excluded.waketime, minutes=excluded.minutes,"
+            " updated_at=excluded.updated_at",
+            (d, bed, wake, mins, now))
+        done.append("睡眠 %s→%s (%d時間%02d分)" % (bed, wake, mins // 60, mins % 60))
+        return ""
+
+    sub(r"(?:睡眠\s*)?(\d{1,2}:\d{2})\s*[-〜~ー–]\s*(\d{1,2}:\d{2})", sleep)
+    sub(r"(?:歩数\s*)?([0-9][0-9,]*)\s*歩",
+        lambda m: day_set("steps", int(m.group(1).replace(",", "")),
+                          "%s歩" % m.group(1)) or "")
+    return text, done
+
+
+# 数字だけの修飾語(3x50 / 50回 / 20分 / 40kg)。直前の種目にぶら下げる
+_MOD = re.compile(r"^[0-9.]+(?:x[0-9.]+)?(?:回|分|kg|セット|km)?$")
+
+
+def _scan_exercises(con, toks, d, now):
+    """トークンの並びから種目を切り出す。1行に何種目あっても分けて記録する。"""
+    entries, rest, cur = [], [], None
+
+    def flush():
+        nonlocal cur
+        if cur:
+            entries.append(_save_workout(con, cur["name"], cur["mods"], d, now))
+            cur = None
+
+    for t in toks:
+        key = re.sub(r"[0-9.x回分kgセット]+$", "", t)
+        name = key if key in EX_BY_NAME else EX_ALIAS.get(key)
+        if name:
+            flush()
+            cur = {"name": name, "mods": [t]}
+        elif cur and _MOD.match(t):
+            cur["mods"].append(t)
+        else:
+            flush()
+            rest.append(t)
+    flush()
+    return entries, rest
+
+
+def _save_workout(con, name, mods, d, now):
+    e = EX_BY_NAME[name]
+    body = " ".join(mods)
+    sets = reps = weight = minutes = None
+    m = re.search(r"(\d+)\s*x\s*(\d+)", body)
+    if m:
+        sets, reps = int(m.group(1)), int(m.group(2))
+    else:
+        m = re.search(r"(\d+)\s*セット", body)
+        if m:
+            sets = int(m.group(1))
+        m = re.search(r"(\d+)\s*回", body)
+        if m:
+            reps = int(m.group(1))
+    m = re.search(r"(\d+)\s*分", body)
+    if m:
+        minutes = int(m.group(1))
+    m = re.search(r"([0-9.]+)\s*kg", body)
+    if m:
+        weight = float(m.group(1))
+    con.execute("INSERT INTO workouts(date,name,muscle,size,sets,reps,weight,minutes,created_at)"
+                " VALUES(?,?,?,?,?,?,?,?,?)",
+                (d, name, e["muscle"], e["size"], sets, reps, weight, minutes, now))
+    detail = " ".join(x for x in [
+        "%dx%d" % (sets, reps) if sets and reps else ("%d回" % reps if reps else ""),
+        "%gkg" % weight if weight else "", "%d分" % minutes if minutes else ""] if x)
+    tag = {"big": "大筋群", "small": "小筋群", "cardio": "有酸素"}[e["size"]]
+    return "運動 %s %s[%s]" % (name, detail + " " if detail else "", tag)
+
+
+def _slot_by_clock():
+    h = datetime.now().hour
+    return "朝" if h < 10 else "昼" if h < 15 else "夕" if h < 22 else "間食"
+
+
+def _parse_food(con, tok, slot, d, now, qty=1.0, hints=None):
+    """食品名(空白を含むこともある)を記録する。『700kcal』のような直接指定も受ける。"""
+    m = re.match(r"^(.*?)([0-9]+)kcal$", tok)
+    if m:
+        con.execute("INSERT INTO meals(date,slot,name,qty,kcal,p,f,c,salt,created_at)"
+                    " VALUES(?,?,?,1,?,0,0,0,0,?)",
+                    (d, slot, m.group(1) or "手入力", float(m.group(2)), now))
+        return (True, "%s %s %skcal" % (slot, m.group(1) or "手入力", m.group(2)))
+
+    f = find_food(con, tok)
+    if not f:
+        return (False, tok)
+    for h in (hints or ()):
+        want = FOOD_HINTS[h]
+        alt = con.execute(
+            "SELECT * FROM foods WHERE name LIKE ? AND name LIKE ? ORDER BY id LIMIT 1",
+            (tok + "%", "%" + want + "%")).fetchone()
+        if alt:
+            f = alt
+            break
+    con.execute("INSERT INTO meals(date,slot,name,qty,kcal,p,f,c,salt,created_at)"
+                " VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (d, slot, f["name"], qty, round(f["kcal"] * qty, 1), round(f["p"] * qty, 1),
+                 round(f["f"] * qty, 1), round(f["c"] * qty, 1), round(f["salt"] * qty, 2), now))
+    con.execute("UPDATE foods SET used=used+1 WHERE id=?", (f["id"],))
+    label = f["name"] + ("" if qty == 1 else " x%g" % qty)
+    return (True, "%s %s (%dkcal 塩%.1fg)" % (slot, label, f["kcal"] * qty, f["salt"] * qty))
+
+
 # ── コマンドライン ─────────────────────────────────────────────────────────
 
 def _print_today(con, d=None):
@@ -955,6 +1244,16 @@ def main(argv):
             con.execute("UPDATE days SET weight=?, updated_at=? WHERE date=?",
                         (float(argv[2]), datetime.now().isoformat(timespec="seconds"), d))
             con.commit()
+            _print_today(con)
+        elif cmd == "log" and len(argv) > 2:
+            r = parse_log(con, " ".join(argv[2:]))
+            for x in r["done"]:
+                print("  ✓ " + x)
+            if r["unknown"]:
+                print("  ? 分からなかった: " + "、".join(r["unknown"]))
+                print("    → 『社食 700kcal』のようにカロリーを直接書くか、")
+                print("      画面の「手入力／マイ食品に登録」から登録してください")
+            print()
             _print_today(con)
         elif cmd == "bp" and len(argv) > 3:
             slot = argv[argv.index("--slot") + 1] if "--slot" in argv else "朝"

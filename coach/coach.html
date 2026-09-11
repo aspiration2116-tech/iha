@@ -197,10 +197,23 @@ function viewToday(){
   const t = D.targets, i = D.intake, r = D.remaining;
   return `
   <div class="card">
+    <h2>まとめて記録</h2>
+    <div class="row">
+      <label style="flex:1 1 100%"><textarea id="quick" placeholder="朝 ご飯 納豆 味噌汁 昼 ラーメン 汁残し 体重 98.4 血圧 138 88 睡眠 0:30-6:40 三頭筋 3x50 8000歩"
+        onkeydown="if(event.metaKey&&event.key==='Enter')quickLog()"></textarea></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="primary" onclick="quickLog()">記録する</button>
+      <span class="note" style="margin:0">食事・運動・体重・血圧・睡眠・歩数を1行に混ぜて書けます（⌘+Enterでも送信）</span>
+    </div>
+    <div id="quickres"></div>
+  </div>
+
+  <div class="card">
     <div class="stats">
       <div class="stat"><b>${D.weight.toFixed(1)}</b><span>体重 kg</span></div>
       <div class="stat"><b>${D.bmi}</b><span>BMI ${D.bmi_label}</span></div>
-      <div class="stat"><b>${D.lost >= 0 ? "-" : "+"}${Math.abs(D.lost).toFixed(1)}</b><span>開始から kg</span></div>
+      <div class="stat"><b>${D.lost > 0 ? "-" : D.lost < 0 ? "+" : ""}${Math.abs(D.lost).toFixed(1)}</b><span>開始から kg</span></div>
       <div class="stat"><b>${D.to_goal.toFixed(1)}</b><span>目標まで kg</span></div>
     </div>
     ${D.comp ? `<div class="stats" style="margin-top:10px">
@@ -254,6 +267,21 @@ function viewToday(){
       '<p class="note">記録が入るとここに指示が出ます。</p>'}
   </div>
   ${disclaimer()}`;
+}
+
+async function quickLog(){
+  const text = $("quick").value.trim();
+  if (!text) return;
+  D = await api("/api/log", {text});
+  const r = D.log_result || {done:[], unknown:[]};
+  render();
+  const box = $("quickres");
+  if (box) box.innerHTML = `<div class="msg ${r.unknown.length?"warn":"good"}" style="margin-top:10px">
+    <h3>${r.done.length}件 記録しました</h3>
+    <p>${r.done.map(esc).join("<br>")}
+    ${r.unknown.length ? `<br><br><b>分からなかった:</b> ${r.unknown.map(esc).join("、")}
+      <br>「社食 700kcal」のようにカロリーを直接書くか、食事タブの「手入力／マイ食品に登録」から登録してください。` : ""}</p></div>`;
+  toast(r.done.length + "件 記録しました");
 }
 
 function saveDay(){

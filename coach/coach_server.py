@@ -164,6 +164,7 @@ class Handler(BaseHTTPRequestHandler):
         con = coach.connect()
         try:
             handler = {
+                "/api/log": self._post_log,
                 "/api/day": self._post_day,
                 "/api/meal": self._post_meal,
                 "/api/meal/delete": self._post_meal_delete,
@@ -178,13 +179,21 @@ class Handler(BaseHTTPRequestHandler):
             }.get(path)
             if not handler:
                 return self._json({"error": "not found"}, 404)
+            self._last_log = None
             handler(con, body)
-            return self._json(coach.build(con, body.get("date") or _today()))
+            data = coach.build(con, body.get("date") or _today())
+            if self._last_log:
+                data["log_result"] = self._last_log
+            return self._json(data)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
             return self._json({"error": str(e)}, 500)
         finally:
             con.close()
+
+    def _post_log(self, con, b):
+        """1行のテキストをそのまま記録する。結果は次の画面更新で返す。"""
+        self._last_log = coach.parse_log(con, b.get("text") or "", b.get("date") or _today())
 
     def _post_day(self, con, b):
         d = b.get("date") or _today()

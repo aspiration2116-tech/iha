@@ -1,0 +1,18 @@
+{
+  "_note": "このファイルを profile.json という名前でコピーして、自分の値に書き換えてください。profile.json は .gitignore に入っているので、リポジトリには含まれません（このリポジトリは公開なので、身体の数値をコミットしないための仕組みです）。",
+  "height": 170.0,
+  "start_weight": 80.0,
+  "goal_weight": 70.0,
+  "sex": "male",
+  "age": 40,
+  "activity": "low",
+  "pace": "standard",
+  "salt_target": 6.0,
+  "sleep_target": 450,
+  "wake_target": "06:30",
+  "step_target": 8000,
+  "on_bp_medication": 0,
+  "snoring": 0,
+  "observed_apnea": 0,
+  "neck_cm": 0
+}
