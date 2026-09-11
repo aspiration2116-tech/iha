@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #ffd400; } a:hover { color: #ffe866; }
+    .jp { font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; }
+    .out { -webkit-text-stroke: 14px #0d0d0d; paint-order: stroke fill; }
+    .out-s { -webkit-text-stroke: 9px #0d0d0d; paint-order: stroke fill; }
+  </style>
+</helmet>
+
+<div class="jp" style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #1a1712;">
+
+  <!-- 背景プレースホルダー（Lovartで生成した画像に差し替える） -->
+  <div style="position: absolute; inset: 0; background:
+      radial-gradient(120% 90% at 18% 8%, #6b5f4a 0%, #3a332a 42%, #1a1712 78%);"></div>
+  <div style="position: absolute; left: -40px; top: -60px; width: 620px; height: 900px;
+      background: linear-gradient(160deg, rgba(255,238,200,0.30) 0%, rgba(255,238,200,0.06) 46%, rgba(255,238,200,0) 70%);
+      transform: rotate(-13deg); filter: blur(2px);"></div>
+  <div style="position: absolute; left: 120px; bottom: -30px; width: 560px; height: 300px; border-radius: 40px 40px 0 0;
+      background: linear-gradient(180deg, #e9e3d6 0%, #bdb5a4 100%); opacity: 0.55;"></div>
+
+  <div style="position: absolute; left: 34px; top: 30px; max-width: 470px; padding: 14px 16px;
+      border: 2px dashed rgba(255,255,255,0.42); border-radius: 10px;
+      font-size: 15px; line-height: 1.6; color: rgba(255,255,255,0.82);">
+    <b style="color:#ffd400">背景をここに差し替え</b><br>
+    朝の寝室。50代女性がティッシュで鼻を押さえ、くしゃみをする瞬間。
+    背後に白い布団。窓からの強い朝日に、細かいホコリが無数に舞う。
+    <b>右3分の1は空ける。</b>
+  </div>
+
+  <!-- 文字レイヤー -->
+  <div style="position: absolute; right: 44px; top: 44px; height: 632px;
+      display: flex; flex-direction: row-reverse; align-items: flex-start; gap: 10px;">
+    <div class="out" style="writing-mode: vertical-rl; font-weight: 900; font-size: 86px; line-height: 1.04;
+        letter-spacing: 0.02em; color: #ffffff;">順番が、<span style="color:#ffd400">逆</span>です</div>
+    <div class="out-s" style="writing-mode: vertical-rl; font-weight: 900; font-size: 50px; line-height: 1.1;
+        letter-spacing: 0.02em; color: #ffffff; margin-top: 18px;">敵は<span style="color:#ffd400">虫じゃない</span></div>
+  </div>
+
+  <!-- 左下：否定を画で見せる -->
+  <div style="position: absolute; left: 44px; bottom: 40px; display: flex; align-items: center; gap: 12px;">
+    <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#e8342a" stroke-width="4" stroke-linecap="round">
+      <line x1="5" y1="5" x2="19" y2="19"></line><line x1="19" y1="5" x2="5" y2="19"></line>
+    </svg>
+    <div class="out-s" style="font-weight: 900; font-size: 40px; color: #ffffff; letter-spacing: 0.02em;">天日干し</div>
+  </div>
+
+  <!-- YouTube再生時間バッジの安全域 -->
+  <div style="position: absolute; right: 12px; bottom: 12px; width: 210px; height: 54px;
+      border: 1px dashed rgba(255,255,255,0.18); border-radius: 6px;"></div>
+
+</div>
+</x-dc>
+</body>
+</html>

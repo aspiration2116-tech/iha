@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #ffd400; } a:hover { color: #ffe866; }
+    .jp { font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; }
+    .out { -webkit-text-stroke: 14px #0d0d0d; paint-order: stroke fill; }
+    .out-s { -webkit-text-stroke: 9px #0d0d0d; paint-order: stroke fill; }
+  </style>
+</helmet>
+
+<div class="jp" style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #15130f;">
+
+  <!-- 背景プレースホルダー：夏と秋の対比 -->
+  <div style="position: absolute; left: 0; top: 0; width: 640px; height: 720px;
+      background: radial-gradient(100% 80% at 40% 20%, #8fb7d9 0%, #4a6f92 55%, #2a4058 100%);"></div>
+  <div style="position: absolute; right: 0; top: 0; width: 640px; height: 720px;
+      background: radial-gradient(100% 80% at 60% 20%, #6b5f4a 0%, #3a332a 50%, #15130f 100%);"></div>
+  <div style="position: absolute; left: 636px; top: 0; width: 8px; height: 720px; background: #0d0d0d;"></div>
+  <div style="position: absolute; right: -20px; top: -40px; width: 520px; height: 860px;
+      background: linear-gradient(165deg, rgba(255,238,200,0.34) 0%, rgba(255,238,200,0.05) 48%, rgba(255,238,200,0) 72%);
+      transform: rotate(12deg); filter: blur(2px);"></div>
+
+  <div style="position: absolute; left: 26px; top: 24px; max-width: 400px; padding: 12px 14px;
+      border: 2px dashed rgba(255,255,255,0.42); border-radius: 10px;
+      font-size: 14px; line-height: 1.55; color: rgba(255,255,255,0.85);">
+    <b style="color:#ffd400">背景（左）</b> 真夏の強い日差しでベランダに干された白い布団。青空。
+  </div>
+  <div style="position: absolute; right: 26px; top: 24px; max-width: 400px; padding: 12px 14px;
+      border: 2px dashed rgba(255,255,255,0.42); border-radius: 10px;
+      font-size: 14px; line-height: 1.55; color: rgba(255,255,255,0.85);">
+    <b style="color:#ffd400">背景（右）</b> 同じ布団が室内。秋の斜めの光にホコリが濃く舞う。<b>中央は空ける。</b>
+  </div>
+
+  <!-- 左：夏 -->
+  <div class="out-s" style="position: absolute; left: 72px; top: 214px; writing-mode: vertical-rl;
+      font-weight: 900; font-size: 62px; line-height: 1.06; color: #ffffff; letter-spacing: 0.02em;">真夏</div>
+
+  <!-- 中央：主コピー -->
+  <div style="position: absolute; left: 0; right: 0; top: 168px; display: flex; justify-content: center;
+      flex-direction: row-reverse; gap: 8px;">
+    <div class="out" style="writing-mode: vertical-rl; font-weight: 900; font-size: 96px; line-height: 1.04;
+        letter-spacing: 0.02em; color: #ffffff;">9月の布団は</div>
+    <div class="out" style="writing-mode: vertical-rl; font-weight: 900; font-size: 96px; line-height: 1.04;
+        letter-spacing: 0.02em; color: #ffd400;">夏より汚い</div>
+  </div>
+
+  <!-- 右：9月 -->
+  <div class="out-s" style="position: absolute; right: 72px; top: 214px; writing-mode: vertical-rl;
+      font-weight: 900; font-size: 62px; line-height: 1.06; color: #ffd400; letter-spacing: 0.02em;">9月</div>
+
+  <div style="position: absolute; right: 12px; bottom: 12px; width: 210px; height: 54px;
+      border: 1px dashed rgba(255,255,255,0.18); border-radius: 6px;"></div>
+
+</div>
+</x-dc>
+</body>
+</html>
