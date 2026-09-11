@@ -1,27 +1,48 @@
 {
-  "self_channels": ["@tomorrow_life_hack"],
+  "self_channels": [
+    "@tomorrow_life_hack"
+  ],
   "rival_channels": [],
   "keywords": [
     "ライフハック 雑学",
     "知らないと損 生活の知恵",
-    "やってはいけない 家",
-    "掃除 裏技",
-    "電気代 節約",
-    "健康 雑学",
-    "害虫 対策",
-    "暑さ対策 エアコン",
-    "100均 便利グッズ",
-    "洗濯 裏技",
-    "冷蔵庫 保存 裏技",
-    "スマホ 設定 裏技"
+    "結露 対策",
+    "衣替え 防虫剤",
+    "部屋干し 生乾き",
+    "加湿器 カビ",
+    "暖房 電気代",
+    "秋 寝具",
+    "布団 しまう",
+    "エアコン 掃除 しまう",
+    "ヒートショック 対策",
+    "大掃除 早め",
+    "秋 花粉",
+    "換気 冬"
   ],
-  "search_periods": ["today", "week", "month"],
+  "search_periods": [
+    "today",
+    "week",
+    "month"
+  ],
   "auto_discover": true,
   "max_rivals": 45,
   "discover_min_views": 2000,
   "exclude_channel_words": [
-    "ニュース", "news", "報道", "テレビ", "TBS", "ANN", "FNN", "NHK",
-    "海外の反応", "切り抜き", "短剧", "不動産", "宝くじ", "競馬", "予想"
+    "ニュース",
+    "news",
+    "報道",
+    "テレビ",
+    "TBS",
+    "ANN",
+    "FNN",
+    "NHK",
+    "海外の反応",
+    "切り抜き",
+    "短剧",
+    "不動産",
+    "宝くじ",
+    "競馬",
+    "予想"
   ],
   "genre_channel_pattern": "雑学|ライフハック|知恵|暮らし|生活|節約|裏ワザ|裏技|得する|知らな|豆知識",
   "exclude_shorts": true,
