@@ -1,5 +1,10 @@
 # youtube-research — ライフハック雑学チャンネル リサーチツール
 
+> このリポジトリには2つのツールが入っています。
+> 下のリサーチツールと、**[健康コーチ](coach/README.md)**（食事・体重・血圧・睡眠の記録とコーチング。
+> `健康コーチ.command` をダブルクリック、または `python3 coach/coach_server.py` → http://localhost:8771）。
+
+
 @tomorrow_life_hack のネタ探し・競合分析を自動化するツール。APIキー不要(RSS + ページ解析)。
 
 ## 別のMacに移す

@@ -1,0 +1,7 @@
+# 記録データベースと実行時のログ(個人の健康記録なので共有しない)
+coach/coach.db
+coach/coach.db-wal
+coach/coach.db-shm
+coach/coach.log
+__pycache__/
+*.pyc

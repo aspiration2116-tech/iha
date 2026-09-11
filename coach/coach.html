@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>健康コーチ</title>
+<style>
+:root{
+  --bg:#f4f6f8; --card:#fff; --ink:#1b2430; --sub:#66738a; --line:#e2e7ee;
+  --accent:#2f7d5d; --accent-soft:#e7f3ed;
+  --alert:#c0392b; --alert-soft:#fdeceb;
+  --warn:#b4740c; --warn-soft:#fdf4e3;
+  --good:#2f7d5d; --good-soft:#e7f3ed;
+  --info:#3a6ea5; --info-soft:#eaf1f9;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#14181d; --card:#1c2229; --ink:#e6ebf1; --sub:#93a1b3; --line:#2b333c;
+    --accent:#5cbf93; --accent-soft:#1d2f28;
+    --alert:#f08276; --alert-soft:#33211f;
+    --warn:#e0ac57; --warn-soft:#302819;
+    --good:#5cbf93; --good-soft:#1d2f28;
+    --info:#7fb0e0; --info-soft:#1b2632;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+  font-size:15px;line-height:1.7;-webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding:0 14px 90px}
+header{position:sticky;top:0;z-index:20;background:var(--bg);
+  border-bottom:1px solid var(--line);padding:10px 0 0}
+.hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:0 2px}
+.hd h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.02em}
+.hd .date{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sub)}
+.hd .date button{padding:2px 9px}
+nav{display:flex;gap:2px;overflow-x:auto;margin-top:8px;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:0 0 auto;background:none;border:none;border-bottom:2px solid transparent;
+  padding:8px 12px;font-size:14px;color:var(--sub);cursor:pointer;font-weight:600;white-space:nowrap}
+nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:14px 16px;margin:12px 0}
+.card h2{font-size:14px;margin:0 0 10px;letter-spacing:.04em;color:var(--sub);font-weight:700}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row>label{flex:1 1 92px;min-width:0;font-size:12px;color:var(--sub);font-weight:600}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--ink);font-size:16px;font-family:inherit}
+textarea{resize:vertical;min-height:52px}
+button{padding:8px 14px;border-radius:8px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);font-size:14px;cursor:pointer;font-family:inherit;font-weight:600}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.ghost{background:none;border:none;color:var(--sub);padding:4px 6px;font-size:12px}
+button:active{opacity:.7}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:10px;text-align:center}
+.stat{background:var(--bg);border-radius:10px;padding:10px 4px}
+.stat b{display:block;font-size:21px;line-height:1.25;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--sub)}
+.msg{border-left:3px solid var(--line);border-radius:0 9px 9px 0;padding:10px 13px;margin:9px 0;
+  background:var(--bg)}
+.msg h3{margin:0 0 3px;font-size:14.5px}
+.msg p{margin:0;font-size:13.5px;color:var(--sub);line-height:1.75}
+.msg .tag{float:right;font-size:11px;color:var(--sub);opacity:.8;font-weight:600}
+.msg.alert{border-color:var(--alert);background:var(--alert-soft)} .msg.alert h3{color:var(--alert)}
+.msg.warn{border-color:var(--warn);background:var(--warn-soft)}   .msg.warn h3{color:var(--warn)}
+.msg.good{border-color:var(--good);background:var(--good-soft)}   .msg.good h3{color:var(--good)}
+.msg.info{border-color:var(--info);background:var(--info-soft)}   .msg.info h3{color:var(--info)}
+.bar{height:8px;background:var(--line);border-radius:5px;overflow:hidden;margin:5px 0 2px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:5px;transition:width .3s}
+.bar i.over{background:var(--warn)}
+.bar i.bad{background:var(--alert)}
+.blab{display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+.blab b{font-variant-numeric:tabular-nums;color:var(--ink)}
+ul.list{list-style:none;margin:0;padding:0}
+ul.list li{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+ul.list li:last-child{border-bottom:none}
+ul.list li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ul.list li .kc{font-variant-numeric:tabular-nums;color:var(--sub);font-size:13px}
+.chip{display:inline-block;padding:1px 7px;border-radius:99px;background:var(--bg);
+  border:1px solid var(--line);font-size:11px;color:var(--sub);margin-right:4px;font-weight:600}
+.res{max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:9px;margin-top:8px}
+.res div{padding:8px 11px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px;
+  display:flex;gap:8px;align-items:center}
+.res div:last-child{border-bottom:none}
+.res div:hover{background:var(--accent-soft)}
+.res .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res .meta{font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums;white-space:nowrap}
+.hab{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.hab:last-child{border-bottom:none}
+.hab input{width:20px;height:20px;flex:0 0 auto;margin-top:2px}
+.hab div{flex:1}
+.hab .why{font-size:12px;color:var(--sub);line-height:1.6}
+.note{font-size:12px;color:var(--sub);line-height:1.7;margin:8px 0 0}
+.disc{font-size:12px;color:var(--sub);background:var(--bg);border-radius:9px;padding:10px 13px;
+  line-height:1.75;margin-top:12px;border:1px dashed var(--line)}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+.legend{font-size:11.5px;color:var(--sub);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:3px;border-radius:2px;vertical-align:middle;margin:0 4px 0 10px}
+.hidden{display:none}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);
+  color:var(--bg);padding:8px 18px;border-radius:99px;font-size:13px;font-weight:600;
+  opacity:0;pointer-events:none;transition:opacity .25s;z-index:50}
+.toast.on{opacity:.95}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--sub);font-size:11.5px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="hd">
+    <h1>健康コーチ</h1>
+    <div class="date">
+      <button onclick="shiftDay(-1)">◀</button>
+      <input type="date" id="theDate" style="width:150px;padding:3px 7px;font-size:13px" onchange="syncHash();load()">
+      <button onclick="shiftDay(1)">▶</button>
+    </div>
+  </div>
+  <nav id="tabs"></nav>
+</header>
+<main id="main"></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const TABS = [["today","今日"],["meal","食事"],["bp","血圧"],["sleep","睡眠"],
+              ["trend","推移"],["plan","プラン"],["setting","設定"]];
+let TAB = "today", D = null, HIST = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const hhmm = m => m == null ? "—" : Math.floor(m/60) + "時間" + String(m%60).padStart(2,"0") + "分";
+
+function toast(t){ const el = $("toast"); el.textContent = t; el.classList.add("on");
+  setTimeout(() => el.classList.remove("on"), 1600); }
+
+function today(){ const n = new Date(); n.setMinutes(n.getMinutes() - n.getTimezoneOffset());
+  return n.toISOString().slice(0,10); }
+
+function shiftDay(n){ const d = new Date($("theDate").value + "T12:00:00");
+  d.setDate(d.getDate() + n); $("theDate").value = d.toISOString().slice(0,10); syncHash(); load(); }
+
+async function api(path, body){
+  const opt = body ? {method:"POST", headers:{"Content-Type":"application/json"},
+                      body: JSON.stringify(Object.assign({date: $("theDate").value}, body))} : {};
+  const r = await fetch(path, opt);
+  const j = await r.json();
+  if (j.error) { toast("エラー: " + j.error); throw new Error(j.error); }
+  return j;
+}
+
+async function save(path, body, msg){ D = await api(path, body); if (msg) toast(msg); render(); }
+
+async function load(){
+  D = await api("/api/data?date=" + $("theDate").value);
+  HIST = null;
+  render();
+}
+
+function go(tab){ TAB = tab; syncHash(); render(); }
+
+function syncHash(){
+  const h = "#" + TAB + ($("theDate").value !== today() ? "/" + $("theDate").value : "");
+  if (location.hash !== h) history.replaceState(null, "", h);
+}
+
+function readHash(){
+  const [tab, d] = location.hash.replace(/^#/, "").split("/");
+  if (TABS.some(([k]) => k === tab)) TAB = tab;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d || "")) $("theDate").value = d;
+}
+
+function render(){
+  $("tabs").innerHTML = TABS.map(([k,n]) =>
+    `<button class="${k===TAB?"on":""}" onclick="go('${k}')">${n}</button>`).join("");
+  $("main").innerHTML = ({today:viewToday, meal:viewMeal, bp:viewBP, sleep:viewSleep,
+                          trend:viewTrend, plan:viewPlan, setting:viewSetting})[TAB]();
+  if (TAB === "meal") searchFood();
+  if (TAB === "trend" && !HIST) loadHistory();
+}
+
+/* ── 今日 ───────────────────────────────────────────────────────────── */
+function bar(label, now, goal, opt){
+  opt = opt || {};
+  const pct = goal > 0 ? Math.min(now / goal * 100, 100) : 0;
+  const over = opt.lowerIsBetter ? now > goal : now > goal * 1.1;
+  return `<div class="blab"><span>${label}</span><b>${opt.fmt ? opt.fmt(now) : Math.round(now)}
+    <span style="color:var(--sub);font-weight:400"> / ${opt.fmt ? opt.fmt(goal) : Math.round(goal)}${opt.unit||""}</span></b></div>
+    <div class="bar"><i class="${over ? (opt.lowerIsBetter?"bad":"over") : ""}" style="width:${pct}%"></i></div>`;
+}
+
+function viewToday(){
+  const t = D.targets, i = D.intake, r = D.remaining;
+  return `
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><b>${D.weight.toFixed(1)}</b><span>体重 kg</span></div>
+      <div class="stat"><b>${D.bmi}</b><span>BMI ${D.bmi_label}</span></div>
+      <div class="stat"><b>${D.lost >= 0 ? "-" : "+"}${Math.abs(D.lost).toFixed(1)}</b><span>開始から kg</span></div>
+      <div class="stat"><b>${D.to_goal.toFixed(1)}</b><span>目標まで kg</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>今日の食事</h2>
+    ${bar("カロリー", i.kcal, t.kcal, {unit:" kcal"})}
+    ${bar("たんぱく質", i.protein, t.protein, {unit:" g", fmt:v=>v.toFixed(0)})}
+    ${bar("食塩", i.salt, t.salt, {unit:" g", lowerIsBetter:true, fmt:v=>v.toFixed(1)})}
+    <p class="note">残り <b style="color:var(--ink)">${r.kcal} kcal</b> ／
+      たんぱく質あと ${Math.max(r.protein,0).toFixed(0)}g ／
+      食塩の余裕 ${r.salt.toFixed(1)}g
+      　<button class="ghost" onclick="go('meal')">食べたものを足す →</button></p>
+  </div>
+
+  <div class="card">
+    <h2>今日の記録</h2>
+    <div class="row">
+      <label>体重 kg<input type="number" step="0.1" id="w" value="${D.day.weight ?? ""}" placeholder="朝イチで"></label>
+      <label>歩数<input type="number" id="st" value="${D.day.steps ?? ""}" placeholder="${D.profile.step_target}"></label>
+      <label>運動 分<input type="number" id="ex" value="${D.day.exercise_min ?? ""}"></label>
+      <label>体調
+        <select id="cond">${[["","—"],[5,"5 快調"],[4,"4 良い"],[3,"3 普通"],[2,"2 いまいち"],[1,"1 悪い"]]
+          .map(([v,n])=>`<option value="${v}" ${String(D.day.condition ?? "")===String(v)?"selected":""}>${n}</option>`).join("")}</select></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label style="flex:1 1 100%">メモ<textarea id="nt" placeholder="頭痛・むくみ・気分・食べすぎた理由など">${esc(D.day.note ?? "")}</textarea></label>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="primary" onclick="saveDay()">保存</button></div>
+  </div>
+
+  <div class="card">
+    <h2>今日のコーチング</h2>
+    ${D.advice.map(m => `<div class="msg ${m.level}">
+      ${m.tag ? `<span class="tag">${esc(m.tag)}</span>` : ""}
+      <h3>${esc(m.title)}</h3><p>${esc(m.body)}</p></div>`).join("") ||
+      '<p class="note">記録が入るとここに指示が出ます。</p>'}
+  </div>
+  ${disclaimer()}`;
+}
+
+function saveDay(){
+  save("/api/day", {weight:$("w").value, steps:$("st").value, exercise_min:$("ex").value,
+                    condition:$("cond").value, note:$("nt").value}, "保存しました");
+}
+
+/* ── 食事 ───────────────────────────────────────────────────────────── */
+function viewMeal(){
+  const bySlot = {};
+  D.meals.forEach(m => (bySlot[m.slot] = bySlot[m.slot] || []).push(m));
+  const plan = D.meal_plan.map(p => {
+    const eaten = (bySlot[p.slot] || []).reduce((a,m) => a + m.kcal, 0);
+    return `<tr><td>${p.slot}</td><td>${Math.round(eaten)}</td><td>${p.kcal}</td>
+      <td>${p.protein}</td><td>${p.salt.toFixed(1)}</td></tr>`;
+  }).join("");
+  return `
+  <div class="card">
+    <h2>食べたものを足す</h2>
+    <div class="row">
+      <label style="flex:0 0 88px">いつ<select id="slot">
+        ${["朝","昼","夕","間食"].map(s=>`<option>${s}</option>`).join("")}</select></label>
+      <label style="flex:0 0 78px">量<input type="number" step="0.25" id="qty" value="1"></label>
+      <label style="flex:1 1 160px">食品を検索
+        <input id="q" placeholder="ご飯 / ラーメン / 納豆 …" oninput="searchFood()" autocomplete="off"></label>
+    </div>
+    <div class="res" id="res"></div>
+    <p class="note">見つからないものは
+      <button class="ghost" onclick="$('manual').classList.toggle('hidden')">手入力／マイ食品に登録 ▾</button></p>
+    <div id="manual" class="hidden">
+      <div class="row">
+        <label style="flex:1 1 140px">名前<input id="mn" placeholder="社食の日替わり"></label>
+        <label>kcal<input type="number" id="mk"></label>
+        <label>P g<input type="number" step="0.1" id="mp"></label>
+        <label>F g<input type="number" step="0.1" id="mf"></label>
+        <label>C g<input type="number" step="0.1" id="mc"></label>
+        <label>食塩 g<input type="number" step="0.1" id="ms"></label>
+      </div>
+      <div class="row" style="margin-top:9px">
+        <button class="primary" onclick="addManual(false)">今日に追加</button>
+        <button onclick="addManual(true)">追加してマイ食品に保存</button>
+      </div>
+      <p class="note">カロリーだけ分かっている場合は kcal だけでも構いません。
+        「だいたい」で入れるほうが、入れないより正確です。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>今日食べたもの（${D.intake.items}件・${D.intake.kcal} kcal）</h2>
+    ${["朝","昼","夕","間食"].map(s => (bySlot[s]||[]).length ? `
+      <p class="note" style="margin:10px 0 2px"><b style="color:var(--ink)">${s}</b></p>
+      <ul class="list">${bySlot[s].map(m => `<li>
+        <span class="nm">${esc(m.name)}${m.qty !== 1 ? ` ×${m.qty}` : ""}</span>
+        <span class="kc">${Math.round(m.kcal)}kcal P${m.p.toFixed(0)} 塩${m.salt.toFixed(1)}</span>
+        <button class="ghost" onclick="save('/api/meal/delete',{id:${m.id}},'削除しました')">✕</button>
+      </li>`).join("")}</ul>` : "").join("") || '<p class="note">まだ何も入っていません。</p>'}
+  </div>
+
+  <div class="card">
+    <h2>1日の配分の目安</h2>
+    <table><thead><tr><th>区分</th><th>今</th><th>目安kcal</th><th>P g</th><th>塩 g</th></tr></thead>
+      <tbody>${plan}</tbody></table>
+    <p class="note">夕食を軽めにしているのは、就寝3時間前までに食べ終えると睡眠が深くなるからです。
+      きっちり守る必要はなく、1日の合計が目標に近ければ十分です。</p>
+  </div>`;
+}
+
+let searchTimer = null;
+function searchFood(){
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const q = ($("q") || {}).value || "";
+    const rows = await (await fetch("/api/foods?q=" + encodeURIComponent(q))).json();
+    const box = $("res");
+    if (!box) return;
+    box.innerHTML = rows.map(f => `<div onclick="addFood(${f.id})">
+      <span class="nm">${esc(f.name)} <span class="chip">${esc(f.unit)}</span></span>
+      <span class="meta">${Math.round(f.kcal)}kcal P${f.p.toFixed(0)} 塩${f.salt.toFixed(1)}</span>
+    </div>`).join("") || '<div class="nm" style="color:var(--sub)">見つかりません。手入力を使ってください。</div>';
+  }, 150);
+}
+
+function addFood(id){
+  save("/api/meal", {food_id:id, qty:$("qty").value, slot:$("slot").value}, "追加しました");
+}
+
+async function addManual(alsoSave){
+  const b = {name:$("mn").value, kcal:$("mk").value, p:$("mp").value, f:$("mf").value,
+             c:$("mc").value, salt:$("ms").value};
+  if (alsoSave) { await api("/api/food", b); }
+  await save("/api/meal", Object.assign({slot:$("slot").value}, b), "追加しました");
+}
+
+/* ── 血圧 ───────────────────────────────────────────────────────────── */
+function viewBP(){
+  const b = D.bp7;
+  return `
+  <div class="card">
+    <h2>血圧を記録</h2>
+    <div class="row">
+      <label style="flex:0 0 84px">時間帯<select id="bslot"><option>朝</option><option>晩</option></select></label>
+      <label>上（収縮期）<input type="number" id="sys" placeholder="135"></label>
+      <label>下（拡張期）<input type="number" id="dia" placeholder="85"></label>
+      <label>脈拍<input type="number" id="pul" placeholder="72"></label>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="primary" onclick="addBP()">記録する</button></div>
+    <p class="note"><b style="color:var(--ink)">正しい測り方</b>：朝は起床後1時間以内・トイレのあと・朝食と薬の前。
+      晩は就寝前。背もたれのある椅子に座り、腕帯を心臓の高さにして1〜2分安静にしてから測ります。
+      直前の喫煙・カフェイン・運動は避けてください。1回の値ではなく<b style="color:var(--ink)">平均</b>で判断します。</p>
+  </div>
+
+  ${b.count ? `<div class="card">
+    <h2>直近7日の平均</h2>
+    <div class="stats">
+      <div class="stat"><b>${b.avg_systolic}</b><span>上 mmHg</span></div>
+      <div class="stat"><b>${b.avg_diastolic}</b><span>下 mmHg</span></div>
+      <div class="stat"><b>${b.measured_days}</b><span>測定した日数</span></div>
+      <div class="stat"><b style="font-size:15px;color:var(--${b.level==='good'?'good':b.level==='warn'?'warn':b.level==='alert'?'alert':'info'})">${b.category}</b><span>家庭血圧の分類</span></div>
+    </div>
+    <p class="note">家庭血圧の高血圧の基準は <b style="color:var(--ink)">135/85 mmHg 以上</b>（診察室で測る場合は140/90）。
+      家庭で測った値のほうが診断の精度は高いとされています。目標は135/85未満です。</p>
+  </div>` : ""}
+
+  <div class="card">
+    <h2>今日の記録</h2>
+    <ul class="list">${D.bp_today.map(r => `<li>
+      <span class="nm">${r.slot}　<b>${r.systolic}/${r.diastolic}</b> ${r.pulse ? `脈${r.pulse}` : ""}</span>
+      <span class="kc">${bpCat(r.systolic, r.diastolic)}</span>
+      <button class="ghost" onclick="save('/api/bp/delete',{id:${r.id}},'削除しました')">✕</button>
+    </li>`).join("") || '<li style="color:var(--sub)">まだ記録がありません</li>'}</ul>
+  </div>
+
+  ${D.bp_series.length > 1 ? `<div class="card"><h2>推移</h2>${bpChart()}</div>` : ""}
+
+  <div class="card">
+    <h2>血圧を下げるためにやること</h2>
+    <div class="msg info"><h3>1. 減塩（1日6g未満）</h3>
+      <p>いちばん即効性があります。麺類の汁を残すだけで2〜3g減ります。醤油・ソースは
+      「かける」より小皿で「つける」。加工食品・漬物・干物・練り物は塩の主な出どころです。
+      食塩1g減で上の血圧が約1mmHg下がるのが目安。</p></div>
+    <div class="msg info"><h3>2. 減量</h3>
+      <p>体重1kg減で上の血圧が約1mmHg下がるとされます。100→70kgなら、これだけで大きな差になります。
+      減量は薬以外で最も確実な降圧手段です。</p></div>
+    <div class="msg info"><h3>3. 有酸素運動（週150分）</h3>
+      <p>早歩き30分×週5日など。運動は続けている間ずっと血圧を下げます。10分×3回に分けても効果は同じです。</p></div>
+    <div class="msg info"><h3>4. 節酒</h3>
+      <p>飲酒量に比例して血圧は上がります。減らすと数日で下がり始めます。
+      寝酒は睡眠の後半を浅くするので、睡眠改善の面でも止める価値があります。</p></div>
+    <div class="msg info"><h3>5. カリウムを増やす</h3>
+      <p>野菜・果物・海藻・大豆製品に多く、ナトリウムの排出を助けます。
+      ただし<b>腎臓の病気がある人・カリウムを上げる薬を飲んでいる人は自己判断で増やさないでください</b>。</p></div>
+    <p class="note"><button onclick="location.href='/api/export?kind=bp'">家庭血圧の記録をCSVで書き出す</button>
+      　受診のときに持っていくと診断がスムーズです。</p>
+  </div>
+  ${disclaimer()}`;
+}
+
+function bpCat(s, d){
+  if (s >= 160 || d >= 100) return "III度高血圧";
+  if (s >= 145 || d >= 90) return "II度高血圧";
+  if (s >= 135 || d >= 85) return "I度高血圧";
+  if (s >= 125 || d >= 75) return "高値血圧";
+  if (s >= 115) return "正常高値";
+  return "正常";
+}
+
+function addBP(){
+  if (!$("sys").value || !$("dia").value) return toast("上と下の値を入れてください");
+  save("/api/bp", {systolic:$("sys").value, diastolic:$("dia").value,
+                   pulse:$("pul").value, slot:$("bslot").value}, "記録しました");
+}
+
+/* ── 睡眠 ───────────────────────────────────────────────────────────── */
+function viewSleep(){
+  const s = D.sleep_today, w = D.sleep;
+  const done = D.habits.filter(h => h.done).length;
+  return `
+  <div class="card">
+    <h2>昨夜の睡眠</h2>
+    <div class="row">
+      <label>就寝<input type="time" id="bed" value="${s.bedtime || ""}"></label>
+      <label>起床<input type="time" id="wake" value="${s.waketime || ""}"></label>
+      <label>眠りの質<select id="sq">${[["","—"],[5,"5 ぐっすり"],[4,"4 良い"],[3,"3 普通"],[2,"2 浅い"],[1,"1 眠れない"]]
+        .map(([v,n])=>`<option value="${v}" ${String(s.quality ?? "")===String(v)?"selected":""}>${n}</option>`).join("")}</select></label>
+      <label>中途覚醒 回<input type="number" id="awk" value="${s.awakenings ?? ""}" placeholder="0"></label>
+      <label>日中の眠気<select id="slp">${[["","—"],[1,"1 なし"],[2,"2 少し"],[3,"3 ふつう"],[4,"4 強い"],[5,"5 耐えがたい"]]
+        .map(([v,n])=>`<option value="${v}" ${String(s.sleepiness ?? "")===String(v)?"selected":""}>${n}</option>`).join("")}</select></label>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="primary" onclick="saveSleep()">保存</button>
+      ${s.minutes ? `<span class="note" style="margin:0">睡眠時間 <b style="color:var(--ink)">${hhmm(s.minutes)}</b></span>` : ""}</div>
+  </div>
+
+  ${w.count ? `<div class="card">
+    <h2>直近14日</h2>
+    <div class="stats">
+      <div class="stat"><b style="font-size:17px">${hhmm(w.avg_minutes)}</b><span>平均睡眠</span></div>
+      <div class="stat"><b>${w.wake_sd_min != null ? "±"+w.wake_sd_min+"分" : "—"}</b><span>起床のばらつき</span></div>
+      <div class="stat"><b>${w.avg_quality ?? "—"}</b><span>眠りの質</span></div>
+      <div class="stat"><b>${w.avg_awakenings ?? "—"}</b><span>中途覚醒 回</span></div>
+    </div>
+    <p class="note">目標は睡眠 ${hhmm(D.profile.sleep_target)}、起床 ${D.profile.wake_target} ±30分。
+      <b style="color:var(--ink)">起床のばらつき</b>が±60分を超えると体内時計が時差ボケ状態になります。
+      就寝時刻より先に起床時刻を固定するのが、睡眠改善のいちばん確実な入り口です。</p>
+  </div>` : ""}
+
+  <div class="card">
+    <h2>今日の睡眠チェック（${done}/${D.habits.length}）</h2>
+    ${D.habits.map(h => `<label class="hab">
+      <input type="checkbox" data-k="${h.key}" ${h.done?"checked":""} onchange="saveHabits()">
+      <div>${esc(h.label)}<div class="why">${esc(h.why)}</div></div></label>`).join("")}
+    <p class="note">全部を一度にやろうとしないでください。上から順に、1つずつ2週間かけて定着させます。
+      効くのは意志ではなく順番です。</p>
+  </div>
+
+  <div class="card">
+    <h2>睡眠時無呼吸のチェック（${D.sas.score}/${D.sas.max}項目）</h2>
+    <div class="msg ${D.sas.level}"><h3>${D.sas.text}</h3>
+      <p>${D.sas.hits.length ? "当てはまる項目: " + esc(D.sas.hits.join("、")) + "。" : "当てはまる項目はありません。"}
+      ${D.sas.score >= 3 ? "　3項目以上あるため、一度検査を受けることをおすすめします。自宅でできる簡易検査があります（呼吸器内科・睡眠外来・耳鼻咽喉科）。" : ""}</p></div>
+    <p class="note">体重が重く血圧も高い場合、睡眠時無呼吸がその両方の原因になっていることがあります。
+      その場合、何時間寝ても疲れが取れず、食事と運動を頑張っても血圧が下がりにくい状態が続きます。
+      いびき・呼吸停止の指摘・首まわりは<button class="ghost" onclick="go('setting')">設定</button>から入力できます。</p>
+  </div>
+  ${disclaimer()}`;
+}
+
+function saveSleep(){
+  save("/api/sleep", {bedtime:$("bed").value, waketime:$("wake").value, quality:$("sq").value,
+                      awakenings:$("awk").value, sleepiness:$("slp").value}, "保存しました");
+}
+
+function saveHabits(){
+  const done = [...document.querySelectorAll('.hab input:checked')].map(e => e.dataset.k);
+  save("/api/habits", {done}, "");
+}
+
+/* ── 推移 ───────────────────────────────────────────────────────────── */
+async function loadHistory(){
+  HIST = await (await fetch("/api/history?days=120")).json();
+  if (TAB === "trend") render();
+}
+
+function viewTrend(){
+  if (!HIST) return '<div class="card"><p class="note">読み込み中…</p></div>';
+  const t = D.trend;
+  return `
+  <div class="card">
+    <h2>体重</h2>
+    ${lineChart(HIST.weights.map(p => ({x:p.date, y:p.value})),
+                [{pts:HIST.weights.map(p=>({x:p.date,y:p.avg})), color:"var(--accent)", w:2.5}],
+                {unit:"kg", refs:[{v:D.profile.goal_weight, label:"目標"}]})}
+    <div class="legend"><i style="background:var(--sub);opacity:.5"></i>毎日の実測
+      <i style="background:var(--accent)"></i>7日移動平均（こちらで判断する）</div>
+    <p class="note">${t.rate_week != null
+      ? `直近2週間のペース <b style="color:var(--ink)">週 ${t.rate_week > 0 ? "+" : ""}${t.rate_week}kg</b>（目標 週 -${D.targets.weekly_loss}kg）／記録 ${t.days}日・合計 ${t.total_change > 0 ? "+" : ""}${t.total_change}kg`
+      : "2週間ぶん記録するとペースが出ます。"}
+      <br>体重は水分と便で1〜2kg動きます。上下に一喜一憂せず、移動平均の線だけ見てください。</p>
+  </div>
+
+  ${HIST.bp.length > 1 ? `<div class="card"><h2>血圧</h2>${bpChart()}</div>` : ""}
+
+  ${HIST.sleep.length > 1 ? `<div class="card"><h2>睡眠時間</h2>
+    ${lineChart(HIST.sleep.filter(s=>s.minutes).map(s => ({x:s.date, y:s.minutes/60})), [],
+                {unit:"時間", refs:[{v:D.profile.sleep_target/60, label:"目標"}]})}
+  </div>` : ""}
+
+  ${HIST.meals.length > 1 ? `<div class="card"><h2>摂取カロリーと食塩</h2>
+    ${lineChart(HIST.meals.map(m => ({x:m.date, y:m.kcal})), [],
+                {unit:"kcal", refs:[{v:D.targets.kcal, label:"目標"}]})}
+    <div style="margin-top:14px">
+    ${lineChart(HIST.meals.map(m => ({x:m.date, y:m.salt})), [],
+                {unit:"g 食塩", refs:[{v:D.profile.salt_target, label:"上限"}]})}
+    </div>
+  </div>` : ""}
+
+  <div class="card">
+    <h2>書き出し</h2>
+    <div class="row">
+      <button onclick="location.href='/api/export?kind=bp'">家庭血圧 CSV</button>
+      <button onclick="location.href='/api/export?kind=sleep'">睡眠 CSV</button>
+      <button onclick="location.href='/api/export?kind=all'">体重・食事 CSV</button>
+    </div>
+    <p class="note">受診のときは血圧CSVを持っていってください。家庭血圧の記録は診断と薬の調整に直接使われます。</p>
+  </div>`;
+}
+
+function bpChart(){
+  const src = (HIST && HIST.bp.length) ? HIST.bp : D.bp_series;
+  return lineChart(src.map(p => ({x:p.date, y:p.systolic})),
+    [{pts:src.map(p=>({x:p.date,y:p.diastolic})), color:"var(--info)", w:2}],
+    {unit:"mmHg", refs:[{v:135, label:"上の目標"}, {v:85, label:"下の目標"}]}) +
+    '<div class="legend"><i style="background:var(--sub);opacity:.5"></i>上（収縮期）' +
+    '<i style="background:var(--info)"></i>下（拡張期）</div>';
+}
+
+/* 依存ライブラリなしの折れ線グラフ。ポイントと、重ねる系列を受け取る。 */
+function lineChart(pts, extra, opt){
+  opt = opt || {}; extra = extra || [];
+  pts = pts.filter(p => p.y != null);
+  if (pts.length < 2) return '<p class="note">データが2日分たまると表示されます。</p>';
+  const W = 680, H = 190, PL = 42, PR = 12, PT = 12, PB = 22;
+  const all = pts.concat(...extra.map(e => e.pts.filter(p => p.y != null)));
+  let lo = Math.min(...all.map(p => p.y)), hi = Math.max(...all.map(p => p.y));
+  // 目安線はデータの近くにあるときだけ目盛りに含める。目標体重のように遠い線を
+  // 含めてしまうと、肝心の実データが一直線に潰れて変化が読めなくなる。
+  const span = (hi - lo) || 1;
+  const refs = (opt.refs || []).map(r => {
+    const near = r.v >= lo - span * 0.6 && r.v <= hi + span * 0.6;
+    if (near) { lo = Math.min(lo, r.v); hi = Math.max(hi, r.v); }
+    return Object.assign({near}, r);
+  });
+  const pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad;
+  const xs = pts.map(p => +new Date(p.x));
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const X = v => PL + (x1 === x0 ? 0.5 : (+new Date(v) - x0)/(x1 - x0)) * (W - PL - PR);
+  const Y = v => PT + (1 - (v - lo)/(hi - lo)) * (H - PT - PB);
+  const path = ps => ps.filter(p=>p.y!=null).map((p,i) => (i?"L":"M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
+  const ticks = [lo + (hi-lo)*0.1, (lo+hi)/2, hi - (hi-lo)*0.1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img">
+    ${ticks.map(v => `<line x1="${PL}" x2="${W-PR}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/>
+      <text x="${PL-6}" y="${Y(v)+4}" text-anchor="end" font-size="10" fill="var(--sub)">${v.toFixed(v>100?0:1)}</text>`).join("")}
+    ${refs.map(r => r.near
+      ? `<line x1="${PL}" x2="${W-PR}" y1="${Y(r.v)}" y2="${Y(r.v)}"
+         stroke="var(--warn)" stroke-width="1.2" stroke-dasharray="5 4" opacity="0.8"/>
+        <text x="${W-PR}" y="${Y(r.v)-4}" text-anchor="end" font-size="9.5" fill="var(--warn)">${r.label} ${r.v}</text>`
+      : `<text x="${W-PR}" y="${r.v < lo ? H-PB-3 : PT+9}" text-anchor="end" font-size="9.5"
+         fill="var(--sub)">${r.label} ${r.v} ${r.v < lo ? "↓この下" : "↑この上"}</text>`).join("")}
+    <path d="${path(pts)}" fill="none" stroke="var(--sub)" stroke-width="${extra.length?1.2:2}"
+      opacity="${extra.length?0.45:1}" stroke-linejoin="round"/>
+    ${extra.map(e => `<path d="${path(e.pts)}" fill="none" stroke="${e.color}" stroke-width="${e.w}" stroke-linejoin="round"/>`).join("")}
+    <text x="${PL}" y="${H-6}" font-size="10" fill="var(--sub)">${pts[0].x.slice(5)}</text>
+    <text x="${W-PR}" y="${H-6}" text-anchor="end" font-size="10" fill="var(--sub)">${pts[pts.length-1].x.slice(5)} (${opt.unit||""})</text>
+  </svg>`;
+}
+
+/* ── プラン ─────────────────────────────────────────────────────────── */
+function viewPlan(){
+  const t = D.targets, p = D.projection;
+  return `
+  <div class="card">
+    <h2>いまの設定での計算</h2>
+    <table>
+      <tr><td>基礎代謝（Mifflin-St Jeor式）</td><td><b>${t.bmr}</b> kcal</td></tr>
+      <tr><td>消費カロリー（× ${t.pal} ${esc(D.activity_label)}）</td><td><b>${t.tdee}</b> kcal</td></tr>
+      <tr><td>1日の目標摂取</td><td><b style="color:var(--accent)">${t.kcal}</b> kcal</td></tr>
+      <tr><td>1日の赤字</td><td>${t.deficit} kcal</td></tr>
+      <tr><td>予想ペース</td><td>週 <b>-${t.weekly_loss}</b> kg</td></tr>
+      <tr><td>たんぱく質 / 脂質 / 炭水化物</td><td><b>${t.protein}</b> / ${t.fat} / ${t.carb} g</td></tr>
+      <tr><td>食塩</td><td><b>${t.salt}</b> g 未満</td></tr>
+      <tr><td>食物繊維</td><td>${t.fiber} g 以上</td></tr>
+    </table>
+    <p class="note">摂取カロリーは<b style="color:var(--ink)">基礎代謝（${t.bmr}kcal）を下回らない</b>ように自動で下げ止めています。
+      これ以下にすると体重は一時的に速く落ちますが、筋肉が減って代謝が落ち、
+      ほぼ確実にリバウンドします。急ぐほど遠回りになります。</p>
+  </div>
+
+  <div class="card">
+    <h2>${D.profile.goal_weight}kg までの見通し</h2>
+    ${p.weeks ? `<div class="stats">
+      <div class="stat"><b>${p.months}</b><span>ヶ月（最短）</span></div>
+      <div class="stat"><b style="font-size:15px">${p.goal_date}</b><span>到達予定</span></div>
+      <div class="stat"><b>${D.to_goal.toFixed(1)}</b><span>あと kg</span></div>
+    </div>
+    <p class="note">${esc(p.note)} 体重が落ちると基礎代謝も下がるため、後半ほどペースは鈍ります
+      （その分を織り込んで週ごとに計算しています）。1年かかる前提で構えたほうが、結果的に速く着きます。</p>`
+    : '<p class="note">いまの設定では目標に届きません。設定を見直してください。</p>'}
+  </div>
+
+  <div class="card">
+    <h2>やる順番</h2>
+    <div class="msg info"><h3>第1〜2週：測るだけ</h3><p>毎朝の体重、食べたもの全部、朝晩の血圧、就寝と起床。
+      食事制限はまだしません。この2週間で「いま自分が何kcal・何g塩を取っているか」が分かります。
+      ここを飛ばすと、あとで停滞したときに何を直せばいいか判断できなくなります。</p></div>
+    <div class="msg info"><h3>第3〜4週：起床時刻の固定と減塩</h3><p>起床を ${D.profile.wake_target} に固定し、
+      朝の光を浴びる。麺の汁を残す・醤油を小皿にする。この2つだけで睡眠と血圧が動き始めます。
+      カロリーはまだ ${t.kcal + 200} kcal くらいの緩めで構いません。</p></div>
+    <div class="msg info"><h3>第5週〜：${t.kcal} kcal とたんぱく質 ${t.protein}g</h3>
+      <p>本格的な減量に入ります。毎食に手のひら1枚分のたんぱく質（肉・魚・卵・豆腐）を置き、
+      主食を測って盛るのが要点。同時に週150分の早歩きを足します。</p></div>
+    <div class="msg info"><h3>停滞したら</h3><p>2〜3週間動かないのは正常です。まず記録漏れを疑い（油・ドレッシング・飲み物）、
+      次に体重が減った分だけ目標カロリーが下がっているかを確認します。
+      食事をさらに削るのは最後の手段です。</p></div>
+  </div>
+
+  <div class="card">
+    <h2>1日の食事の組み立て方</h2>
+    <p class="note" style="margin-top:0">献立を毎回考えるのは続きません。「型」を決めて中身を入れ替えます。</p>
+    <table><thead><tr><th>区分</th><th>kcal</th><th style="text-align:left">型</th></tr></thead><tbody>
+      <tr><td>朝</td><td>${D.meal_plan[0].kcal}</td><td style="text-align:left">ご飯150g＋卵か納豆＋具だくさん味噌汁（薄め）</td></tr>
+      <tr><td>昼</td><td>${D.meal_plan[1].kcal}</td><td style="text-align:left">主食＋肉か魚を手のひら1枚＋野菜。外食なら定食、麺なら汁を残す</td></tr>
+      <tr><td>夕</td><td>${D.meal_plan[2].kcal}</td><td style="text-align:left">主食を半分に、たんぱく質と野菜を多めに。就寝3時間前まで</td></tr>
+      <tr><td>間食</td><td>${D.meal_plan[3].kcal}</td><td style="text-align:left">ヨーグルト・ナッツ25g・ゆで卵・高カカオチョコ</td></tr>
+    </tbody></table>
+    <p class="note"><b style="color:var(--ink)">満腹感を落とさずカロリーを下げる置き換え</b>：
+      豚バラ→鶏むね／マヨネーズ→ポン酢＋オリーブ油少し／ジュース・加糖コーヒー→水・お茶／
+      ラーメンの汁→残す／揚げ物→焼く・蒸す。この5つだけで1日400〜600kcal変わります。</p>
+  </div>
+  ${disclaimer()}`;
+}
+
+/* ── 設定 ───────────────────────────────────────────────────────────── */
+function viewSetting(){
+  const p = D.profile;
+  const sel = (id, cur, opts) => `<select id="${id}">${opts.map(([v,n]) =>
+    `<option value="${v}" ${String(cur)===String(v)?"selected":""}>${n}</option>`).join("")}</select>`;
+  return `
+  ${!p.profile_confirmed ? `<div class="card"><div class="msg warn">
+    <h3>まず設定を確認してください</h3>
+    <p>年齢と性別で必要カロリーが1割以上変わります。いまは 男性・40歳 の仮の値で計算しています。
+    正しい値に直して保存してください。</p></div></div>` : ""}
+
+  <div class="card">
+    <h2>からだ</h2>
+    <div class="row">
+      <label>身長 cm<input type="number" step="0.1" id="p_height" value="${p.height}"></label>
+      <label>開始体重 kg<input type="number" step="0.1" id="p_start" value="${p.start_weight}"></label>
+      <label>目標体重 kg<input type="number" step="0.1" id="p_goal" value="${p.goal_weight}"></label>
+      <label>年齢<input type="number" id="p_age" value="${p.age}"></label>
+      <label>性別${sel("p_sex", p.sex, [["male","男性"],["female","女性"]])}</label>
+    </div>
+    <p class="note">目標 ${p.goal_weight}kg は BMI ${D.goal_bmi}。BMI 22（${(22*(p.height/100)**2).toFixed(1)}kg）が
+      統計上もっとも病気になりにくい体重とされますが、まず ${p.goal_weight}kg を目指して、
+      着いてから次を考えるので十分です。</p>
+  </div>
+
+  <div class="card">
+    <h2>暮らしと目標</h2>
+    <div class="row">
+      <label style="flex:1 1 180px">活動量${sel("p_act", p.activity,
+        [["low","座り仕事中心"],["mid","立ち仕事・軽い運動"],["high","よく動く・週3〜5回運動"]])}</label>
+      <label style="flex:1 1 160px">減量ペース${sel("p_pace", p.pace,
+        [["slow","ゆっくり（週0.5%）"],["standard","標準（週0.75%）"],["fast","速め（週1.0%）"]])}</label>
+      <label>食塩の上限 g<input type="number" step="0.5" id="p_salt" value="${p.salt_target}"></label>
+      <label>睡眠の目標 分<input type="number" step="15" id="p_sleep" value="${p.sleep_target}"></label>
+      <label>起床時刻<input type="time" id="p_wake" value="${p.wake_target}"></label>
+      <label>歩数の目標<input type="number" step="500" id="p_step" value="${p.step_target}"></label>
+    </div>
+    <p class="note">食塩の上限 6g は高血圧の人の減塩目標（日本高血圧学会）。
+      特に血圧の問題がない場合の一般的な目標は男性7.5g・女性6.5g未満です。</p>
+  </div>
+
+  <div class="card">
+    <h2>睡眠時無呼吸のチェック項目</h2>
+    <div class="row">
+      <label style="flex:1 1 170px">いびきを指摘される${sel("p_snore", p.snoring, [[0,"いいえ / 不明"],[1,"はい"]])}</label>
+      <label style="flex:1 1 200px">呼吸が止まると言われた${sel("p_apnea", p.observed_apnea, [[0,"いいえ / 不明"],[1,"はい"]])}</label>
+      <label style="flex:1 1 130px">降圧薬${sel("p_med", p.on_bp_medication, [[0,"飲んでいない"],[1,"飲んでいる"]])}</label>
+      <label>首まわり cm<input type="number" step="0.5" id="p_neck" value="${p.neck_cm || ""}" placeholder="任意"></label>
+    </div>
+    <p class="note">ここを埋めると「睡眠」タブのリスク判定が正確になります。分からない項目は空のままで構いません。</p>
+  </div>
+
+  <div class="card"><div class="row"><button class="primary" onclick="saveProfile()">設定を保存</button></div></div>
+  ${disclaimer()}`;
+}
+
+function saveProfile(){
+  save("/api/profile", {
+    height:$("p_height").value, start_weight:$("p_start").value, goal_weight:$("p_goal").value,
+    age:$("p_age").value, sex:$("p_sex").value, activity:$("p_act").value, pace:$("p_pace").value,
+    salt_target:$("p_salt").value, sleep_target:$("p_sleep").value, wake_target:$("p_wake").value,
+    step_target:$("p_step").value, snoring:$("p_snore").value, observed_apnea:$("p_apnea").value,
+    on_bp_medication:$("p_med").value, neck_cm:$("p_neck").value || 0,
+  }, "保存しました");
+}
+
+function disclaimer(){
+  return `<div class="disc"><b>このツールについて</b><br>
+    医療機器でも診断ツールでもありません。表示される数値・判定はすべて一般的な目安で、
+    個人の状態に合わせたものではありません。持病・服薬がある場合、
+    血圧が高い状態が続く場合、体調に不安がある場合は必ず医師に相談してください。
+    自己判断で薬をやめたり量を変えたりしないでください。
+    急激な体重減少・強いだるさ・めまい・動悸・胸の痛みがあるときは中止して受診を。</div>`;
+}
+
+$("theDate").value = today();
+readHash();
+load();
+addEventListener("hashchange", () => { readHash(); load(); });
+</script>
+</body>
+</html>
