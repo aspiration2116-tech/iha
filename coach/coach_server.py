@@ -165,6 +165,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             handler = {
                 "/api/log": self._post_log,
+                "/api/import": self._post_import,
                 "/api/day": self._post_day,
                 "/api/meal": self._post_meal,
                 "/api/meal/delete": self._post_meal_delete,
@@ -179,11 +180,13 @@ class Handler(BaseHTTPRequestHandler):
             }.get(path)
             if not handler:
                 return self._json({"error": "not found"}, 404)
-            self._last_log = None
+            self._last_log = self._last_import = None
             handler(con, body)
             data = coach.build(con, body.get("date") or _today())
             if self._last_log:
                 data["log_result"] = self._last_log
+            if self._last_import:
+                data["import_result"] = self._last_import
             return self._json(data)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -194,6 +197,15 @@ class Handler(BaseHTTPRequestHandler):
     def _post_log(self, con, b):
         """1行のテキストをそのまま記録する。結果は次の画面更新で返す。"""
         self._last_log = coach.parse_log(con, b.get("text") or "", b.get("date") or _today())
+
+    def _post_import(self, con, b):
+        """ヘルスケアの書き出しファイルを取り込む。パスは同じMac上のもの。"""
+        path = os.path.expanduser((b.get("path") or "").strip())
+        if not path:
+            raise ValueError("ファイルのパスを入れてください")
+        if not os.path.exists(path):
+            raise ValueError("見つかりません: %s" % path)
+        self._last_import = coach.import_health(con, path, b.get("since") or None)
 
     def _post_day(self, con, b):
         d = b.get("date") or _today()

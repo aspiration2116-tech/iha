@@ -6,6 +6,7 @@
   python3 coach.py today     → 今日の状況とアドバイスを端末に表示
   python3 coach.py weight 98.4
   python3 coach.py bp 145 92 --slot 朝
+  python3 coach.py import ~/Downloads/書き出したデータ.zip   # iPhoneヘルスケアから
 
 外部ライブラリは使わない(標準ライブラリのみ)。データは coach.db (SQLite)。
 
@@ -19,6 +20,7 @@ import math
 import os
 import sqlite3
 import statistics
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -1291,6 +1293,120 @@ def _parse_food(con, tok, slot, d, now, qty=1.0, hints=None, allow_approx=True):
             % (mark, slot, label, f["kcal"] * qty, f["salt"] * qty))
 
 
+# ── ヘルスケアアプリ・活動量計からの取り込み ─────────────────────────────
+
+def import_health(con, path, since=None, days_back=180):
+    """書き出しファイルを読んでDBに入れる。同じものを二度入れないようにする。"""
+    import healthimport
+
+    since = since or (date.today() - timedelta(days=days_back)).isoformat()
+    prof = get_profile(con)
+    now = datetime.now().isoformat(timespec="seconds")
+    n = defaultdict(int)
+
+    def day_set(d, col, val):
+        if d < since or val is None:
+            return
+        con.execute("INSERT OR IGNORE INTO days(date) VALUES(?)", (d,))
+        cur = con.execute("SELECT %s v FROM days WHERE date=?" % col, (d,)).fetchone()["v"]
+        if cur is not None and abs(float(cur) - float(val)) < 0.05:
+            return                      # すでに同じ値なら触らない
+        con.execute("UPDATE days SET %s=?, updated_at=? WHERE date=?" % col, (val, now, d))
+        n[col] += 1
+
+    if path.lower().endswith((".xml", ".zip")):
+        data = healthimport.parse_apple_health(path)
+        src = "iPhone ヘルスケア"
+
+        for d, v in data["steps"].items():
+            day_set(d, "steps", v)
+        for d, v in data["weight"].items():
+            day_set(d, "weight", round(v, 1))
+        for d, v in data["fat"].items():
+            day_set(d, "body_fat", v)
+        # 筋肉量そのものは書き出しに無いので、除脂肪体重から骨量ぶんを引いて近似する
+        for d, v in data["lean"].items():
+            if d in data["weight"]:
+                day_set(d, "muscle_kg", round(v - data["weight"][d] * prof.get("bone_ratio", 0.035), 1))
+
+        for b in data["bp"]:
+            if b["date"] < since:
+                continue
+            dup = con.execute(
+                "SELECT 1 FROM bp WHERE date=? AND systolic=? AND diastolic=?",
+                (b["date"], b["systolic"], b["diastolic"])).fetchone()
+            if dup:
+                continue
+            con.execute("INSERT INTO bp(date,slot,systolic,diastolic,pulse,created_at)"
+                        " VALUES(?,?,?,?,?,?)",
+                        (b["date"], b["slot"], b["systolic"], b["diastolic"], b["pulse"], now))
+            n["血圧"] += 1
+
+        for d, sl in data["sleep"].items():
+            if d < since:
+                continue
+            cur = con.execute("SELECT bedtime, waketime, minutes FROM sleep WHERE date=?",
+                              (d,)).fetchone()
+            if cur and (cur["bedtime"], cur["waketime"], cur["minutes"]) == \
+                    (sl["bedtime"], sl["waketime"], sl["minutes"]):
+                continue                # すでに同じ内容なら数えない
+            con.execute(
+                "INSERT INTO sleep(date,bedtime,waketime,minutes,awakenings,updated_at)"
+                " VALUES(?,?,?,?,?,?) ON CONFLICT(date) DO UPDATE SET"
+                " bedtime=excluded.bedtime, waketime=excluded.waketime,"
+                " minutes=excluded.minutes,"
+                " awakenings=COALESCE(sleep.awakenings, excluded.awakenings),"
+                " updated_at=excluded.updated_at",
+                (d, sl["bedtime"], sl["waketime"], sl["minutes"], sl["awakenings"], now))
+            n["睡眠"] += 1
+
+        for w in data["workouts"]:
+            if w["date"] < since:
+                continue
+            dup = con.execute(
+                "SELECT 1 FROM workouts WHERE date=? AND name=? AND minutes=?",
+                (w["date"], w["name"], w["minutes"])).fetchone()
+            if dup:
+                continue
+            con.execute("INSERT INTO workouts(date,name,muscle,size,minutes,created_at)"
+                        " VALUES(?,?,?,?,?,?)",
+                        (w["date"], w["name"], "アプリ記録", w["size"], w["minutes"], now))
+            n["運動"] += 1
+    else:
+        res = healthimport.parse_csv(path)
+        src = "CSV (%s)" % "、".join(res["columns"])
+        for r in res["rows"]:
+            d = r["date"]
+            if d < since:
+                continue
+            for col in ("weight", "body_fat", "muscle_kg", "steps"):
+                if col in r:
+                    day_set(d, col, round(r[col], 1) if col != "steps" else round(r[col]))
+            if "systolic" in r and "diastolic" in r:
+                dup = con.execute("SELECT 1 FROM bp WHERE date=? AND systolic=? AND diastolic=?",
+                                  (d, round(r["systolic"]), round(r["diastolic"]))).fetchone()
+                if not dup:
+                    con.execute("INSERT INTO bp(date,slot,systolic,diastolic,pulse,created_at)"
+                                " VALUES(?,?,?,?,?,?)",
+                                (d, "朝", round(r["systolic"]), round(r["diastolic"]),
+                                 round(r["pulse"]) if "pulse" in r else None, now))
+                    n["血圧"] += 1
+            if "minutes" in r and r["minutes"] >= 60:
+                cur = con.execute("SELECT minutes FROM sleep WHERE date=?", (d,)).fetchone()
+                if cur and cur["minutes"] == round(r["minutes"]):
+                    continue
+                con.execute("INSERT INTO sleep(date,minutes,updated_at) VALUES(?,?,?)"
+                            " ON CONFLICT(date) DO UPDATE SET minutes=excluded.minutes,"
+                            " updated_at=excluded.updated_at",
+                            (d, round(r["minutes"]), now))
+                n["睡眠"] += 1
+
+    con.commit()
+    label = {"steps": "歩数", "weight": "体重", "body_fat": "体脂肪率", "muscle_kg": "筋肉量"}
+    return {"source": src, "since": since,
+            "counts": {label.get(k, k): v for k, v in n.items() if v}}
+
+
 # ── コマンドライン ─────────────────────────────────────────────────────────
 
 def _print_today(con, d=None):
@@ -1360,6 +1476,18 @@ def main(argv):
                 print("  ? 分からなかった: " + "、".join(r["unknown"]))
                 print("    → 『社食 700kcal』のようにカロリーを直接書くか、")
                 print("      画面の「手入力／マイ食品に登録」から登録してください")
+            print()
+            _print_today(con)
+        elif cmd == "import" and len(argv) > 2:
+            since = argv[argv.index("--since") + 1] if "--since" in argv else None
+            r = import_health(con, os.path.expanduser(argv[2]), since)
+            print("取り込み元: %s" % r["source"])
+            print("対象期間: %s 以降" % r["since"])
+            if r["counts"]:
+                for k, v in r["counts"].items():
+                    print("  ✓ %s %d件" % (k, v))
+            else:
+                print("  新しく取り込むものはありませんでした")
             print()
             _print_today(con)
         elif cmd == "bp" and len(argv) > 3:

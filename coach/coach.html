@@ -675,9 +675,15 @@ function bpChart(){
 function lineChart(pts, extra, opt){
   opt = opt || {}; extra = extra || [];
   pts = pts.filter(p => p.y != null);
-  if (pts.length < 2) return '<p class="note">データが2日分たまると表示されます。</p>';
+  extra = extra.map(e => Object.assign({}, e, {pts: e.pts.filter(p => p.y != null)}))
+               .filter(e => e.pts.length >= 2);
+  // 主系列が足りなくても、重ねる系列にデータがあれば描く(体組成のように
+  // 体脂肪率だけ先に溜まることがあるため)
+  if (pts.length < 2 && !extra.length)
+    return '<p class="note">データが2日分たまると表示されます。</p>';
+  if (pts.length < 2) { pts = extra[0].pts; extra = extra.slice(1); }
   const W = 680, H = 190, PL = 42, PR = 12, PT = 12, PB = 22;
-  const all = pts.concat(...extra.map(e => e.pts.filter(p => p.y != null)));
+  const all = pts.concat(...extra.map(e => e.pts));
   let lo = Math.min(...all.map(p => p.y)), hi = Math.max(...all.map(p => p.y));
   // 目安線はデータの近くにあるときだけ目盛りに含める。目標体重のように遠い線を
   // 含めてしまうと、肝心の実データが一直線に潰れて変化が読めなくなる。
@@ -692,7 +698,7 @@ function lineChart(pts, extra, opt){
   const x0 = Math.min(...xs), x1 = Math.max(...xs);
   const X = v => PL + (x1 === x0 ? 0.5 : (+new Date(v) - x0)/(x1 - x0)) * (W - PL - PR);
   const Y = v => PT + (1 - (v - lo)/(hi - lo)) * (H - PT - PB);
-  const path = ps => ps.filter(p=>p.y!=null).map((p,i) => (i?"L":"M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
+  const path = ps => ps.map((p,i) => (i?"L":"M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
   const ticks = [lo + (hi-lo)*0.1, (lo+hi)/2, hi - (hi-lo)*0.1];
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img">
     ${ticks.map(v => `<line x1="${PL}" x2="${W-PR}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/>
@@ -857,8 +863,43 @@ function viewSetting(){
     <p class="note">ここを埋めると「睡眠」タブのリスク判定が正確になります。分からない項目は空のままで構いません。</p>
   </div>
 
+  <div class="card">
+    <h2>ヘルスケア・活動量計から取り込む</h2>
+    <p class="note" style="margin-top:0"><b style="color:var(--ink)">iPhone の場合</b>：
+      ヘルスケアアプリ → 右上のプロフィールアイコン → 「すべての健康データを書き出す」→
+      共有シートで「ファイルに保存」。できた <code>書き出したデータ.zip</code> のパスを下に貼ります
+      （Finderでファイルを右クリック →「"ファイル名"をパス名としてコピー」）。</p>
+    <div class="row">
+      <label style="flex:1 1 260px">ファイルのパス
+        <input id="imp" placeholder="~/Downloads/書き出したデータ.zip"></label>
+      <label style="flex:0 0 150px">いつ以降<input type="date" id="impsince"></label>
+      <button class="primary" onclick="runImport()">取り込む</button>
+    </div>
+    <div id="impres"></div>
+    <p class="note">歩数・体重・体脂肪率・血圧・睡眠・ワークアウトを取り込みます。
+      同じデータを二度入れることはないので、何度実行しても安全です。
+      Fitbit・Garmin・体組成計アプリなどのCSVも、日付の列があれば読めます。
+      <b style="color:var(--ink)">食事だけは自動で入りません</b>（どのアプリも外に出せないため）。</p>
+  </div>
+
   <div class="card"><div class="row"><button class="primary" onclick="saveProfile()">設定を保存</button></div></div>
   ${disclaimer()}`;
+}
+
+async function runImport(){
+  const path = $("imp").value.trim();
+  if (!path) return toast("パスを入れてください");
+  $("impres").innerHTML = '<p class="note">読み込み中…（大きいファイルは数十秒かかります）</p>';
+  try {
+    D = await api("/api/import", {path, since: $("impsince").value});
+  } catch (e) { $("impres").innerHTML = ""; return; }
+  const r = D.import_result || {counts:{}};
+  const rows = Object.entries(r.counts);
+  render();
+  $("impres").innerHTML = `<div class="msg ${rows.length?"good":"info"}" style="margin-top:10px">
+    <h3>${rows.length ? "取り込みました" : "新しく取り込むものはありませんでした"}</h3>
+    <p>${esc(r.source || "")}${rows.length ? "<br>" + rows.map(([k,v]) => esc(k)+" "+v+"件").join("　") : ""}</p></div>`;
+  toast(rows.length ? "取り込みました" : "更新はありません");
 }
 
 function saveProfile(){
