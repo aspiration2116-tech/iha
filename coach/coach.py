@@ -555,6 +555,8 @@ EXERCISES = [
     {"name": "シーテッドロー",          "muscle": "背中",  "size": "big"},
     {"name": "デッドリフト",           "muscle": "背中・脚", "size": "big"},
     {"name": "チェストプレス",          "muscle": "胸",   "size": "big"},
+    {"name": "腕立て伏せ",             "muscle": "胸",   "size": "big"},
+    {"name": "懸垂",                  "muscle": "背中",  "size": "big"},
     {"name": "ベンチプレス",           "muscle": "胸",   "size": "big"},
     {"name": "ショルダープレス",        "muscle": "肩",   "size": "big"},
     {"name": "サイドレイズ",           "muscle": "肩",   "size": "small"},
@@ -576,6 +578,7 @@ def workout_summary(con, days=7):
     """直近の筋トレ内容。大筋群をやれているかを見る。"""
     since = (date.today() - timedelta(days=days - 1)).isoformat()
     rows = con.execute("SELECT * FROM workouts WHERE date>=? ORDER BY date", (since,)).fetchall()
+    reps = [r["reps"] for r in rows if r["size"] != "cardio" and r["reps"]]
     big = {r["name"] for r in rows if r["size"] == "big"}
     small = {r["name"] for r in rows if r["size"] == "small"}
     cardio = [r for r in rows if r["size"] == "cardio"]
@@ -585,6 +588,8 @@ def workout_summary(con, days=7):
         "big": sorted(big), "small": sorted(small),
         "cardio_min": sum(r["minutes"] or 0 for r in cardio),
         "muscles": sorted({r["muscle"] for r in rows if r["size"] != "cardio"}),
+        "high_rep": bool(reps) and sum(1 for r in reps if r >= 25) > len(reps) / 2,
+        "avg_reps": round(sum(reps) / len(reps)) if reps else None,
     }
 
 
@@ -788,6 +793,14 @@ def build_advice(con, prof, d, weight, t, intake, trend, bp7, sleep14, sas, day_
                              "この順番で合っています。減量中の筋トレは「筋肉を増やす」ためでは"
                              "なく「落ちる体重の中身を脂肪に寄せる」ためのものなので、"
                              "重量が伸びなくても続ける価値があります。", "運動"))
+        if wk.get("high_rep"):
+            msgs.append(_msg("info", "回数が多め（平均 %d回）" % wk["avg_reps"],
+                             "軽い重さで回数を稼ぐのは持久力寄りのやり方です。減量中に"
+                             "筋肉を守るのが目的なら、10〜15回で「あと2回が限界」くらいの"
+                             "重さのほうが時間あたりの効率は上。ただし血圧が高いうちは、"
+                             "今の高回数・中重量のほうが安全なやり方でもあります。"
+                             "血圧が135/85を切って落ち着いてきたら重さを上げていきましょう。", "運動"))
+
         if wk["cardio_min"] < 150 and (bp7.get("level") in ("warn", "alert")):
             msgs.append(_msg("info", "有酸素が週 %d分(目安150分)" % wk["cardio_min"],
                              "血圧に効くのは筋トレより有酸素です。筋トレのあとに"
@@ -925,11 +938,22 @@ EX_ALIAS = {
     "三頭筋": "トライセプスプレスダウン", "三頭": "トライセプスプレスダウン",
     "トライセプス": "トライセプスプレスダウン", "プレスダウン": "トライセプスプレスダウン",
     "二頭筋": "アームカール", "二頭": "アームカール", "カール": "アームカール",
+    "ダンベルカール": "アームカール", "バーベルカール": "アームカール",
+    "ハンマーカール": "アームカール", "インクラインカール": "アームカール",
+    "上腕二頭筋": "アームカール",
+    "キックバック": "トライセプスプレスダウン", "フレンチプレス": "トライセプスプレスダウン",
+    "上腕三頭筋": "トライセプスプレスダウン",
+    "ダンベルプレス": "チェストプレス", "ダンベルフライ": "チェストプレス",
+    "腕立て": "腕立て伏せ", "プッシュアップ": "腕立て伏せ",
+    "チンニング": "懸垂", "ダンベルロー": "シーテッドロー",
+    "シットアップ": "腹筋(自重)", "レッグレイズ": "腹筋(自重)", "アブローラー": "腹筋(自重)",
+    "ダンベルショルダープレス": "ショルダープレス",
+    "サイドレイズ": "サイドレイズ", "ランジ": "レッグプレス", "レッグランジ": "レッグプレス",
     "腹筋": "腹筋(自重)", "腹": "腹筋(自重)",
     "クランチ": "アブドミナルクランチ", "アブドミナル": "アブドミナルクランチ",
     "脚": "レッグプレス", "足": "レッグプレス", "レッグプレス": "レッグプレス",
     "スクワット": "スクワット(スミス)",
-    "背中": "ラットプルダウン", "ラットプル": "ラットプルダウン", "懸垂": "ラットプルダウン",
+    "背中": "ラットプルダウン", "ラットプル": "ラットプルダウン",
     "ロー": "シーテッドロー", "ローイング": "シーテッドロー",
     "胸": "チェストプレス", "ベンチ": "ベンチプレス",
     "肩": "ショルダープレス", "レイズ": "サイドレイズ",
@@ -1092,7 +1116,7 @@ def _extract_metrics(con, text, d, now):
 
 
 # 数字だけの修飾語(3x50 / 50回 / 20分 / 40kg)。直前の種目にぶら下げる
-_MOD = re.compile(r"^[0-9.]+(?:x[0-9.]+)?(?:回|分|kg|セット|km)?$")
+_MOD = re.compile(r"^[0-9.]+(?:x[0-9.]+)?(?:回|分|kg|キロ|セット|km)?$")
 
 
 def _scan_exercises(con, toks, d, now):
@@ -1106,7 +1130,11 @@ def _scan_exercises(con, toks, d, now):
             cur = None
 
     for t in toks:
-        key = re.sub(r"[0-9.x回分kgセット]+$", "", t)
+        # 「ダンベルカール50回8キロ」のように数字がくっついていても、
+        # 最初の数字の手前までを種目名とみなす
+        m = re.match(r"^([^0-9]+?)[0-9].*$", t)
+        key = m.group(1) if m else t
+        key = re.sub(r"[x×\s]+$", "", key)
         name = key if key in EX_BY_NAME else EX_ALIAS.get(key)
         if name:
             flush()
@@ -1137,7 +1165,7 @@ def _save_workout(con, name, mods, d, now):
     m = re.search(r"(\d+)\s*分", body)
     if m:
         minutes = int(m.group(1))
-    m = re.search(r"([0-9.]+)\s*kg", body)
+    m = re.search(r"([0-9.]+)\s*(?:kg|キロ|キログラム)", body)
     if m:
         weight = float(m.group(1))
     con.execute("INSERT INTO workouts(date,name,muscle,size,sets,reps,weight,minutes,created_at)"
