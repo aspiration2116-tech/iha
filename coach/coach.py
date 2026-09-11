@@ -6,7 +6,8 @@
   python3 coach.py today     → 今日の状況とアドバイスを端末に表示
   python3 coach.py weight 98.4
   python3 coach.py bp 145 92 --slot 朝
-  python3 coach.py import ~/Downloads/書き出したデータ.zip   # iPhoneヘルスケアから
+  python3 coach.py import                       # iCloud Drive/ダウンロードから自動で探す
+  python3 coach.py import ~/Downloads/書き出したデータ.zip
 
 外部ライブラリは使わない(標準ライブラリのみ)。データは coach.db (SQLite)。
 
@@ -1295,6 +1296,38 @@ def _parse_food(con, tok, slot, d, now, qty=1.0, hints=None, allow_approx=True):
 
 # ── ヘルスケアアプリ・活動量計からの取り込み ─────────────────────────────
 
+# iPhoneから「ファイルに保存」したときに落ちる先。iCloud Driveに保存すると
+# Macではこのパスに現れるので、毎回パスを打たなくて済むようにここを探す。
+EXPORT_DIRS = [
+    "~/Library/Mobile Documents/com~apple~CloudDocs",        # iCloud Drive
+    "~/Library/Mobile Documents/com~apple~CloudDocs/Downloads",
+    "~/Downloads", "~/Desktop", "~/Documents", ".",
+]
+EXPORT_NAMES = ("書き出したデータ.zip", "export.zip", "書き出したデータ.xml", "export.xml")
+
+
+def find_export():
+    """書き出しファイルを探して、いちばん新しいものを返す。"""
+    found = []
+    for d in EXPORT_DIRS:
+        d = os.path.expanduser(d)
+        if not os.path.isdir(d):
+            continue
+        for n in EXPORT_NAMES:
+            p = os.path.join(d, n)
+            if os.path.exists(p):
+                found.append((os.path.getmtime(p), p))
+        # 「書き出したデータ 2.zip」のような連番も拾う
+        try:
+            for n in os.listdir(d):
+                if re.match(r"^(書き出したデータ|export)( \d+)?\.(zip|xml)$", n):
+                    p = os.path.join(d, n)
+                    found.append((os.path.getmtime(p), p))
+        except OSError:
+            pass
+    return max(found)[1] if found else None
+
+
 def import_health(con, path, since=None, days_back=180):
     """書き出しファイルを読んでDBに入れる。同じものを二度入れないようにする。"""
     import healthimport
@@ -1478,9 +1511,17 @@ def main(argv):
                 print("      画面の「手入力／マイ食品に登録」から登録してください")
             print()
             _print_today(con)
-        elif cmd == "import" and len(argv) > 2:
+        elif cmd == "import":
             since = argv[argv.index("--since") + 1] if "--since" in argv else None
-            r = import_health(con, os.path.expanduser(argv[2]), since)
+            args = [a for a in argv[2:] if not a.startswith("--") and a != since]
+            path = os.path.expanduser(args[0]) if args else find_export()
+            if not path:
+                print("書き出しファイルが見つかりません。iCloud Drive か ダウンロード に"
+                      "「書き出したデータ.zip」を置くか、パスを指定してください:")
+                print("  python3 coach.py import ~/Downloads/書き出したデータ.zip")
+                return
+            print("ファイル: %s (%.0f MB)" % (path, os.path.getsize(path) / 1e6))
+            r = import_health(con, path, since)
             print("取り込み元: %s" % r["source"])
             print("対象期間: %s 以降" % r["since"])
             if r["counts"]:

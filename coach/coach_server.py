@@ -20,6 +20,10 @@ import coach
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("COACH_PORT", "8771"))
+# 既定は 127.0.0.1 (このMacからだけ)。iPhoneから同じWi-Fi経由で開きたいときは
+#   COACH_HOST=0.0.0.0 python3 coach_server.py
+# にする。認証は無いので、自宅のWi-Fi以外では使わないこと。
+HOST = os.environ.get("COACH_HOST", "127.0.0.1")
 
 
 def _num(v, cast=float, default=None):
@@ -328,9 +332,28 @@ class Handler(BaseHTTPRequestHandler):
         con.commit()
 
 
+def _lan_ip():
+    """このMacのWi-Fi側のアドレス。iPhoneから開くURLを案内するために使う。"""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))      # 実際には送らない。経路の選択だけ
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except OSError:
+        return None
+
+
 def main():
-    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    srv = ThreadingHTTPServer((HOST, PORT), Handler)
     print("健康コーチ: http://localhost:%d" % PORT, flush=True)
+    if HOST == "0.0.0.0":
+        ip = _lan_ip()
+        print("iPhoneから: http://%s:%d  (同じWi-Fiにいるとき)" % (ip or "<このMacのIP>", PORT),
+              flush=True)
+        print("※ 認証は無いので、自宅のWi-Fi以外では COACH_HOST を付けずに起動してください",
+              flush=True)
     srv.serve_forever()
 
 

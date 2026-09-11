@@ -14,6 +14,7 @@ python3 coach_server.py      # → http://localhost:8771
 ```
 
 Mac ならリポジトリ直下の `健康コーチ.command` をダブルクリックでも起動する。
+iPhoneからも開きたいときは `健康コーチ（iPhoneから）.command`（自宅Wi-Fi限定、下記）。
 
 ### まとめて記録
 
@@ -50,8 +51,14 @@ HealthKitを読むにはiOSアプリが必要なため）。かわりに書き�
 **iPhone の場合**
 
 1. ヘルスケアアプリ → 右上のプロフィールアイコン → 「すべての健康データを書き出す」
-2. 共有シートから「ファイルに保存」（数分かかります）
-3. できた `書き出したデータ.zip` を指定する
+2. 共有シートで「ファイルに保存」→ 保存先に **iCloud Drive** を選ぶ（数分かかります）
+3. Macで次を実行する。iCloud Drive とダウンロードを自動で探すのでパスは要りません
+
+```bash
+python3 coach.py import
+```
+
+ファイルが別の場所にあるときはパスを指定します。
 
 ```bash
 python3 coach.py import ~/Downloads/書き出したデータ.zip
@@ -59,6 +66,15 @@ python3 coach.py import ~/Downloads/書き出したデータ.zip --since 2026-01
 ```
 
 画面の「設定」タブからパスを貼って取り込むこともできます。
+Apple Watchを長く使っていると書き出しが数百MBになり、取り込みに1〜2分かかります。
+
+**iPhoneから直接記録する**
+
+`健康コーチ（iPhoneから）.command` で起動すると、同じWi-FiにいるiPhoneのSafariから
+`http://192.168.x.x:8771`（起動時に表示）で開けます。共有ボタン →「ホーム画面に追加」で
+アプリのように使えて、食べたものをその場で「まとめて記録」に打てます。
+
+> 認証はありません。**自宅のWi-Fi以外ではこちらは使わず**、通常の `健康コーチ.command` で起動してください。
 
 **Fitbit / Garmin / Google Takeout / 体組成計アプリ**
 
