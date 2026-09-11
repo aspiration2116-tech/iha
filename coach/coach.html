@@ -125,7 +125,7 @@ th{color:var(--sub);font-size:11.5px;font-weight:700}
 <div class="toast" id="toast"></div>
 
 <script>
-const TABS = [["today","今日"],["meal","食事"],["bp","血圧"],["sleep","睡眠"],
+const TABS = [["today","今日"],["meal","食事"],["gym","運動"],["bp","血圧"],["sleep","睡眠"],
               ["trend","推移"],["plan","プラン"],["setting","設定"]];
 let TAB = "today", D = null, HIST = null;
 const $ = id => document.getElementById(id);
@@ -175,8 +175,9 @@ function readHash(){
 function render(){
   $("tabs").innerHTML = TABS.map(([k,n]) =>
     `<button class="${k===TAB?"on":""}" onclick="go('${k}')">${n}</button>`).join("");
-  $("main").innerHTML = ({today:viewToday, meal:viewMeal, bp:viewBP, sleep:viewSleep,
-                          trend:viewTrend, plan:viewPlan, setting:viewSetting})[TAB]();
+  $("main").innerHTML = ({today:viewToday, meal:viewMeal, gym:viewGym, bp:viewBP,
+                          sleep:viewSleep, trend:viewTrend, plan:viewPlan,
+                          setting:viewSetting})[TAB]();
   if (TAB === "meal") searchFood();
   if (TAB === "trend" && !HIST) loadHistory();
 }
@@ -202,6 +203,14 @@ function viewToday(){
       <div class="stat"><b>${D.lost >= 0 ? "-" : "+"}${Math.abs(D.lost).toFixed(1)}</b><span>開始から kg</span></div>
       <div class="stat"><b>${D.to_goal.toFixed(1)}</b><span>目標まで kg</span></div>
     </div>
+    ${D.comp ? `<div class="stats" style="margin-top:10px">
+      <div class="stat"><b>${D.comp.body_fat}</b><span>体脂肪率 %</span></div>
+      <div class="stat"><b>${D.comp.fat_kg}</b><span>体脂肪 kg</span></div>
+      <div class="stat"><b>${D.comp.lean}</b><span>除脂肪体重 kg</span></div>
+      <div class="stat"><b>${D.comp.muscle_kg ?? "—"}</b><span>筋肉量 kg</span></div>
+    </div>
+    <p class="note">落とすのは体脂肪の <b style="color:var(--ink)">${D.comp.fat_kg}kg</b> のほう。
+      除脂肪体重 ${D.comp.lean}kg は守る。（${D.comp.date} 測定）</p>` : ""}
   </div>
 
   <div class="card">
@@ -226,6 +235,12 @@ function viewToday(){
           .map(([v,n])=>`<option value="${v}" ${String(D.day.condition ?? "")===String(v)?"selected":""}>${n}</option>`).join("")}</select></label>
     </div>
     <div class="row" style="margin-top:10px">
+      <label>体脂肪率 %<input type="number" step="0.1" id="bf" value="${D.day.body_fat ?? ""}" placeholder="任意"></label>
+      <label>筋肉量 kg<input type="number" step="0.1" id="mm" value="${D.day.muscle_kg ?? ""}" placeholder="任意"></label>
+      <span class="note" style="flex:2 1 180px;margin:0">体組成計の値。毎日でなく<b style="color:var(--ink)">月1回</b>で十分。
+        入れると基礎代謝とたんぱく質の目標が体組成ベースになります。</span>
+    </div>
+    <div class="row" style="margin-top:10px">
       <label style="flex:1 1 100%">メモ<textarea id="nt" placeholder="頭痛・むくみ・気分・食べすぎた理由など">${esc(D.day.note ?? "")}</textarea></label>
     </div>
     <div class="row" style="margin-top:10px"><button class="primary" onclick="saveDay()">保存</button></div>
@@ -243,7 +258,8 @@ function viewToday(){
 
 function saveDay(){
   save("/api/day", {weight:$("w").value, steps:$("st").value, exercise_min:$("ex").value,
-                    condition:$("cond").value, note:$("nt").value}, "保存しました");
+                    condition:$("cond").value, body_fat:$("bf").value,
+                    muscle_kg:$("mm").value, note:$("nt").value}, "保存しました");
 }
 
 /* ── 食事 ───────────────────────────────────────────────────────────── */
@@ -330,6 +346,88 @@ async function addManual(alsoSave){
              c:$("mc").value, salt:$("ms").value};
   if (alsoSave) { await api("/api/food", b); }
   await save("/api/meal", Object.assign({slot:$("slot").value}, b), "追加しました");
+}
+
+/* ── 運動 ───────────────────────────────────────────────────────────── */
+function viewGym(){
+  const w = D.workout7, ex = D.exercises;
+  const group = (size, label) => `<optgroup label="${label}">${ex.filter(e => e.size === size)
+    .map(e => `<option value="${esc(e.name)}">${esc(e.name)}（${esc(e.muscle)}）</option>`).join("")}</optgroup>`;
+  const bigDone = w.big.length, smallDone = w.small.length;
+  return `
+  <div class="card">
+    <h2>やった種目を記録</h2>
+    <div class="row">
+      <label style="flex:1 1 200px">種目<select id="exn">
+        ${group("big","大きい筋肉（こちらを先に）")}
+        ${group("small","小さい筋肉（補助）")}
+        ${group("cardio","有酸素")}
+      </select></label>
+      <label style="flex:0 0 72px">セット<input type="number" id="exs" placeholder="3"></label>
+      <label style="flex:0 0 72px">回数<input type="number" id="exr" placeholder="10"></label>
+      <label style="flex:0 0 78px">重量 kg<input type="number" step="0.5" id="exw"></label>
+      <label style="flex:0 0 72px">分<input type="number" id="exm" placeholder="20"></label>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="primary" onclick="addWorkout()">記録する</button></div>
+  </div>
+
+  <div class="card">
+    <h2>今日やったこと（${D.workouts.length}種目）</h2>
+    <ul class="list">${D.workouts.map(r => `<li>
+      <span class="nm">${esc(r.name)} <span class="chip">${esc(r.muscle)}</span></span>
+      <span class="kc">${[r.sets && r.reps ? r.sets + "×" + r.reps : (r.reps ? r.reps + "回" : ""),
+                          r.weight ? r.weight + "kg" : "", r.minutes ? r.minutes + "分" : ""]
+                         .filter(Boolean).join(" ")}</span>
+      <button class="ghost" onclick="save('/api/workout/delete',{id:${r.id}},'削除しました')">✕</button>
+    </li>`).join("") || '<li style="color:var(--sub)">まだ記録がありません</li>'}</ul>
+  </div>
+
+  ${w.count ? `<div class="card">
+    <h2>直近7日</h2>
+    <div class="stats">
+      <div class="stat"><b>${w.session_days}</b><span>ジムに行った日</span></div>
+      <div class="stat"><b style="color:var(--${bigDone?"good":"warn"})">${bigDone}</b><span>大きい筋肉 種目</span></div>
+      <div class="stat"><b>${smallDone}</b><span>小さい筋肉 種目</span></div>
+      <div class="stat"><b>${w.cardio_min}</b><span>有酸素 分</span></div>
+    </div>
+    <p class="note">鍛えた部位: ${w.muscles.length ? esc(w.muscles.join("、")) : "—"}
+      ／ 有酸素の目安は週150分（血圧に効くのは主にこちら）。</p>
+  </div>` : ""}
+
+  <div class="card">
+    <h2>減量中の筋トレの考え方</h2>
+    <div class="msg info"><h3>目的は「増やす」ではなく「守る」</h3>
+      <p>カロリーが足りない状態では筋肉はほとんど増えません。それでも筋トレをするのは、
+      落ちる体重の中身を<b>脂肪に寄せる</b>ためです。重量が伸びなくても、続けていれば役目は果たしています。</p></div>
+    <div class="msg info"><h3>大きい筋肉を先に</h3>
+      <p>脚・背中・胸は使う筋肉の量が桁違いで、消費カロリーも筋肉を守る効果も大きい。
+      腕・腹は小さいので補助です。<b>腹筋をいくらやってもお腹の脂肪は落ちません</b>（部分やせは起きない）。
+      お腹を凹ませるのは腹筋運動ではなく、体脂肪を減らすことです。</p></div>
+    <div class="msg info"><h3>週2〜3回、1回45分で十分</h3>
+      <p>A日（脚＋腹）とB日（背中＋胸＋腕）を交互に。同じ部位は48時間あける。
+      それ以上やっても減量中は回復が追いつきません。</p></div>
+    <div class="msg warn"><h3>血圧が高いときは、いきまない</h3>
+      <p>重いものを持つとき息を止めて力む（いきむ）と、その瞬間に血圧が大きく跳ね上がります。
+      ①<b>息を止めない</b>（力を入れるときに吐く）②1セット10回以上できる重さにする（限界まで追い込まない）
+      ③セット間は十分に休む。これを守れば筋トレは続けて問題ありません。</p></div>
+  </div>
+
+  <div class="card">
+    <h2>おすすめの1回（エニタイムのマシンで完結）</h2>
+    <table><thead><tr><th>日</th><th style="text-align:left">種目</th><th>目安</th></tr></thead><tbody>
+      <tr><td>A</td><td style="text-align:left">レッグプレス → レッグカール → アブドミナルクランチ</td><td>3×10〜15</td></tr>
+      <tr><td>B</td><td style="text-align:left">ラットプルダウン → チェストプレス → シーテッドロー → 腕</td><td>3×10〜15</td></tr>
+      <tr><td>毎回</td><td style="text-align:left">最後にトレッドミル 早歩き 20〜30分</td><td>会話できる速さ</td></tr>
+    </tbody></table>
+    <p class="note">重さは「10回でややきつい」程度から。フォームが崩れるなら軽くする。
+      有酸素を筋トレの<b style="color:var(--ink)">あと</b>に持ってくるのは、先にやると筋トレの重量が落ちるからです。</p>
+  </div>
+  ${disclaimer()}`;
+}
+
+function addWorkout(){
+  save("/api/workout", {name:$("exn").value, sets:$("exs").value, reps:$("exr").value,
+                        weight:$("exw").value, minutes:$("exm").value}, "記録しました");
 }
 
 /* ── 血圧 ───────────────────────────────────────────────────────────── */
@@ -498,6 +596,17 @@ function viewTrend(){
       <br>体重は水分と便で1〜2kg動きます。上下に一喜一憂せず、移動平均の線だけ見てください。</p>
   </div>
 
+  ${HIST.days.filter(d => d.body_fat || d.muscle_kg).length > 1 ? `<div class="card">
+    <h2>体組成</h2>
+    ${lineChart(HIST.days.filter(d => d.muscle_kg).map(d => ({x:d.date, y:d.muscle_kg})),
+      [{pts:HIST.days.filter(d => d.body_fat).map(d => ({x:d.date, y:d.body_fat})),
+        color:"var(--info)", w:2}], {unit:"kg / %"})}
+    <div class="legend"><i style="background:var(--sub);opacity:.5"></i>筋肉量 kg
+      <i style="background:var(--info)"></i>体脂肪率 %</div>
+    <p class="note">体重が減っても<b style="color:var(--ink)">筋肉量の線が下がらなければ成功</b>です。
+      落ちているならたんぱく質か筋トレか、減量ペースのどれかが足りていません。</p>
+  </div>` : ""}
+
   ${HIST.bp.length > 1 ? `<div class="card"><h2>血圧</h2>${bpChart()}</div>` : ""}
 
   ${HIST.sleep.length > 1 ? `<div class="card"><h2>睡眠時間</h2>
@@ -581,7 +690,9 @@ function viewPlan(){
   <div class="card">
     <h2>いまの設定での計算</h2>
     <table>
-      <tr><td>基礎代謝（Mifflin-St Jeor式）</td><td><b>${t.bmr}</b> kcal</td></tr>
+      <tr><td>基礎代謝（${t.bmr_formula === "katch" ? "Katch-McArdle式・除脂肪体重から" : "Mifflin-St Jeor式"}）</td><td><b>${t.bmr}</b> kcal</td></tr>
+      ${t.bmr_katch ? `<tr><td style="color:var(--sub)">　もう一方の式だと</td><td style="color:var(--sub)">${
+        t.bmr_formula === "katch" ? t.bmr_mifflin + " kcal（Mifflin）" : t.bmr_katch + " kcal（Katch-McArdle）"}</td></tr>` : ""}
       <tr><td>消費カロリー（× ${t.pal} ${esc(D.activity_label)}）</td><td><b>${t.tdee}</b> kcal</td></tr>
       <tr><td>1日の目標摂取</td><td><b style="color:var(--accent)">${t.kcal}</b> kcal</td></tr>
       <tr><td>1日の赤字</td><td>${t.deficit} kcal</td></tr>
@@ -606,6 +717,28 @@ function viewPlan(){
       （その分を織り込んで週ごとに計算しています）。1年かかる前提で構えたほうが、結果的に速く着きます。</p>`
     : '<p class="note">いまの設定では目標に届きません。設定を見直してください。</p>'}
   </div>
+
+  ${D.comp ? `<div class="card">
+    <h2>${D.profile.goal_weight}kg に着いたときの中身</h2>
+    <p class="note" style="margin-top:0">いま除脂肪体重が <b style="color:var(--ink)">${D.comp.lean}kg</b>、
+      体脂肪が <b style="color:var(--ink)">${D.comp.fat_kg}kg</b>（${D.comp.body_fat}%）。
+      ${D.profile.goal_weight}kg に着いたときの体脂肪率は、途中で筋肉をどれだけ守れたかで決まります。</p>
+    <table><thead><tr><th>減量中に失う除脂肪</th><th>除脂肪体重</th><th>体脂肪率</th><th></th></tr></thead><tbody>
+      ${[0,10,20,30].map(pct => {
+        const lost = (D.weight - D.profile.goal_weight) * pct / 100;
+        const lean2 = D.comp.lean - lost;
+        const bf = (D.profile.goal_weight - lean2) / D.profile.goal_weight * 100;
+        const label = pct === 0 ? "0%（理想）" : pct === 10 ? "10%（うまくいった場合）"
+                    : pct === 20 ? "20%（ふつう）" : "30%（たんぱく質・筋トレ不足）";
+        return `<tr><td style="text-align:left">${label}</td><td>${lean2.toFixed(1)}kg</td>
+          <td><b>${bf.toFixed(1)}%</b></td><td style="color:var(--sub);font-size:11px">${
+          bf < 12 ? "かなり絞れた状態" : bf < 18 ? "引き締まった状態" : bf < 23 ? "標準" : "まだ脂肪が多い"}</td></tr>`;
+      }).join("")}
+    </tbody></table>
+    <p class="note">この表が、たんぱく質 ${t.protein}g と筋トレをやる理由です。
+      同じ ${D.profile.goal_weight}kg でも、中身は別物になります。
+      体重が同じなら見た目を決めるのは体脂肪率のほうです。</p>
+  </div>` : ""}
 
   <div class="card">
     <h2>やる順番</h2>
@@ -675,7 +808,12 @@ function viewSetting(){
       <label>睡眠の目標 分<input type="number" step="15" id="p_sleep" value="${p.sleep_target}"></label>
       <label>起床時刻<input type="time" id="p_wake" value="${p.wake_target}"></label>
       <label>歩数の目標<input type="number" step="500" id="p_step" value="${p.step_target}"></label>
+      <label style="flex:1 1 210px">基礎代謝の計算式${sel("p_formula", p.bmr_formula,
+        [["mifflin","Mifflin-St Jeor（身長・体重・年齢）"],["katch","Katch-McArdle（除脂肪体重）"]])}</label>
     </div>
+    <p class="note">体組成を記録していれば Katch-McArdle 式が選べます。ただし家庭用の体組成計は
+      体脂肪が多いほど筋肉量を多めに出しやすく、そのぶん基礎代謝も高く出ます。
+      迷うなら Mifflin のままで構いません（低めに見積もりすぎて食べなさすぎるのを避けられます）。</p>
     <p class="note">食塩の上限 6g は高血圧の人の減塩目標（日本高血圧学会）。
       特に血圧の問題がない場合の一般的な目標は男性7.5g・女性6.5g未満です。</p>
   </div>
@@ -700,7 +838,8 @@ function saveProfile(){
     height:$("p_height").value, start_weight:$("p_start").value, goal_weight:$("p_goal").value,
     age:$("p_age").value, sex:$("p_sex").value, activity:$("p_act").value, pace:$("p_pace").value,
     salt_target:$("p_salt").value, sleep_target:$("p_sleep").value, wake_target:$("p_wake").value,
-    step_target:$("p_step").value, snoring:$("p_snore").value, observed_apnea:$("p_apnea").value,
+    step_target:$("p_step").value, bmr_formula:$("p_formula").value,
+    snoring:$("p_snore").value, observed_apnea:$("p_apnea").value,
     on_bp_medication:$("p_med").value, neck_cm:$("p_neck").value || 0,
   }, "保存しました");
 }

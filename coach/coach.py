@@ -54,13 +54,15 @@ DEFAULT_PROFILE = {
     "start_weight": 100.0,
     "goal_weight": 70.0,
     "sex": "male",
-    "age": 40,
+    "age": 33,
     "activity": "low",
     "pace": "standard",
     "salt_target": 6.0,          # g/日。高血圧の減塩目標(JSH2019)
     "sleep_target": 450,         # 分。7時間30分
     "wake_target": "06:30",      # 起床時刻を固定するのが睡眠改善の土台
     "step_target": 8000,
+    "bmr_formula": "mifflin",    # mifflin / katch(除脂肪体重ベース。体組成を記録していれば選べる)
+    "bone_ratio": 0.035,         # 推定骨量の体重比。筋肉量から除脂肪体重を出すときに使う
     "on_bp_medication": 0,       # 降圧薬を飲んでいるか
     "snoring": 0,                # いびきを指摘される
     "observed_apnea": 0,         # 睡眠中に呼吸が止まると言われた
@@ -91,6 +93,8 @@ def init_db(con):
         date TEXT PRIMARY KEY,
         weight REAL, steps INTEGER, exercise_min INTEGER,
         condition INTEGER,            -- 体調 1(悪い)〜5(良い)
+        body_fat REAL,                -- 体脂肪率 %
+        muscle_kg REAL,               -- 筋肉量 kg(体組成計の表示値)
         note TEXT, updated_at TEXT);
 
     CREATE TABLE IF NOT EXISTS meals(
@@ -118,12 +122,24 @@ def init_db(con):
     CREATE TABLE IF NOT EXISTS habits(
         date TEXT PRIMARY KEY, done TEXT, updated_at TEXT);
 
+    CREATE TABLE IF NOT EXISTS workouts(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT, name TEXT, muscle TEXT,
+        size TEXT,                    -- big(大筋群) / small(小筋群) / cardio
+        sets INTEGER, reps INTEGER, weight REAL, minutes INTEGER,
+        created_at TEXT);
+    CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(date);
+
     CREATE TABLE IF NOT EXISTS foods(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         cat TEXT, name TEXT UNIQUE, unit TEXT,
         kcal REAL, p REAL, f REAL, c REAL, salt REAL,
         custom INTEGER DEFAULT 0, used INTEGER DEFAULT 0);
     """)
+    have = {r["name"] for r in con.execute("PRAGMA table_info(days)")}
+    for col in ("body_fat REAL", "muscle_kg REAL"):
+        if col.split()[0] not in have:
+            con.execute("ALTER TABLE days ADD COLUMN " + col)
     con.commit()
     if con.execute("SELECT COUNT(*) FROM foods").fetchone()[0] == 0:
         load_builtin_foods(con)
@@ -191,10 +207,56 @@ def bmr(weight, height_cm, age, sex):
     return base + 5 if sex == "male" else base - 161
 
 
-def targets(prof, weight):
+def bmr_katch(lean_kg):
+    """除脂肪体重から基礎代謝を出す(Katch-McArdle式)。
+
+    体組成が分かっているときはこちらのほうが実測に近い。ただし家庭用の体組成計は
+    体脂肪が多いほど筋肉量を多めに出す傾向があるので、鵜呑みにはしない。
+    """
+    return 370 + 21.6 * lean_kg
+
+
+def body_comp(prof, weight, body_fat=None, muscle_kg=None):
+    """体脂肪率または筋肉量から、除脂肪体重と体脂肪量を出す。
+
+    体脂肪率が分かっていればそれが一番正確。筋肉量しか分からない場合は
+    「体重 = 筋肉量 + 体脂肪量 + 骨量」とみなし、骨量を体重比で概算する。
+    """
+    if body_fat:
+        fat_kg = weight * body_fat / 100.0
+        lean = weight - fat_kg
+    elif muscle_kg:
+        lean = muscle_kg + weight * prof.get("bone_ratio", 0.035)
+        fat_kg = weight - lean
+    else:
+        return None
+    if lean <= 0 or fat_kg < 0:
+        return None
+    return {"lean": round(lean, 1), "fat_kg": round(fat_kg, 1),
+            "body_fat": round(fat_kg / weight * 100, 1),
+            "muscle_kg": round(muscle_kg, 1) if muscle_kg else None}
+
+
+def latest_comp(con, prof, weight):
+    """直近で記録された体組成。体脂肪率を優先する。"""
+    row = con.execute(
+        "SELECT date, weight, body_fat, muscle_kg FROM days"
+        " WHERE body_fat IS NOT NULL OR muscle_kg IS NOT NULL"
+        " ORDER BY date DESC LIMIT 1").fetchone()
+    if not row:
+        return None
+    c = body_comp(prof, row["weight"] or weight, row["body_fat"], row["muscle_kg"])
+    if c:
+        c["date"] = row["date"]
+    return c
+
+
+def targets(prof, weight, comp=None):
     """今の体重における1日の目標値をまとめて返す。"""
     h, age, sex = prof["height"], prof["age"], prof["sex"]
     b = bmr(weight, h, age, sex)
+    if comp and prof.get("bmr_formula") == "katch":
+        b = bmr_katch(comp["lean"])
     pal = ACTIVITY.get(prof["activity"], ACTIVITY["low"])[0]
     tdee = b * pal
 
@@ -212,12 +274,19 @@ def targets(prof, weight):
     kcal = round(kcal / 10) * 10
     actual_deficit = max(tdee - kcal, 0)
 
-    # たんぱく質は「目標体重 × 1.5g」。減量中の筋肉の減りを抑えるため多めに取る
-    protein = max(round(prof["goal_weight"] * 1.5), 90)
+    # たんぱく質は減量中の筋肉の減りを抑えるために多めに取る。除脂肪体重が
+    # 分かっていれば「除脂肪体重 × 1.6g」、分からなければ「目標体重 × 1.5g」。
+    if comp:
+        protein = max(round(comp["lean"] * 1.6), 90)
+    else:
+        protein = max(round(prof["goal_weight"] * 1.5), 90)
     fat = round(kcal * 0.25 / 9)                  # 脂質は総カロリーの25%
     carb = round((kcal - protein * 4 - fat * 9) / 4)
     return {
         "bmr": round(b),
+        "bmr_formula": "katch" if (comp and prof.get("bmr_formula") == "katch") else "mifflin",
+        "bmr_mifflin": round(bmr(weight, h, age, sex)),
+        "bmr_katch": round(bmr_katch(comp["lean"])) if comp else None,
         "pal": pal,
         "tdee": round(tdee),
         "kcal": int(kcal),
@@ -231,7 +300,7 @@ def targets(prof, weight):
     }
 
 
-def project(prof, weight):
+def project(prof, weight, comp=None):
     """目標体重に着く時期を、週ごとに代謝を再計算しながら見積もる。
 
     体重が落ちると基礎代謝も落ちて痩せる速度は鈍る。単純な割り算だと
@@ -242,7 +311,12 @@ def project(prof, weight):
     curve = [{"week": 0, "weight": round(w, 1)}]
     weeks = 0
     while w > goal and weeks < 200:
-        t = targets(prof, w)
+        c = dict(comp) if comp else None
+        if c:
+            # 理想は除脂肪体重を保ったまま脂肪だけ減ること。その前提で代謝を出す
+            c = {"lean": comp["lean"], "fat_kg": max(w - comp["lean"], 0),
+                 "body_fat": max(w - comp["lean"], 0) / w * 100, "muscle_kg": c.get("muscle_kg")}
+        t = targets(prof, w, c)
         loss = t["deficit"] * 7 / KCAL_PER_KG_FAT
         if loss <= 0.02:
             break
@@ -456,6 +530,54 @@ def sas_risk(con, prof, weight, bp7, sleep14):
             "hits": hits, "items": items}
 
 
+# ── 筋トレの種目 ───────────────────────────────────────────────────────────
+#
+# size は動かす筋肉の大きさ。減量中に筋肉を守るなら、消費カロリーもホルモン応答も
+# 大きい big(脚・背中・胸)を先にやるのが効率がいい。腕や腹だけをいくらやっても、
+# その部位の脂肪が落ちるわけではない(部分やせは起きない)ので補助の位置づけ。
+
+EXERCISES = [
+    {"name": "レッグプレス",           "muscle": "脚",   "size": "big"},
+    {"name": "スクワット(スミス)",      "muscle": "脚",   "size": "big"},
+    {"name": "レッグカール",           "muscle": "もも裏", "size": "big"},
+    {"name": "レッグエクステンション",   "muscle": "もも前", "size": "big"},
+    {"name": "ラットプルダウン",        "muscle": "背中",  "size": "big"},
+    {"name": "シーテッドロー",          "muscle": "背中",  "size": "big"},
+    {"name": "デッドリフト",           "muscle": "背中・脚", "size": "big"},
+    {"name": "チェストプレス",          "muscle": "胸",   "size": "big"},
+    {"name": "ベンチプレス",           "muscle": "胸",   "size": "big"},
+    {"name": "ショルダープレス",        "muscle": "肩",   "size": "big"},
+    {"name": "サイドレイズ",           "muscle": "肩",   "size": "small"},
+    {"name": "トライセプスプレスダウン", "muscle": "三頭筋", "size": "small"},
+    {"name": "アームカール",           "muscle": "二頭筋", "size": "small"},
+    {"name": "アブドミナルクランチ",     "muscle": "腹",   "size": "small"},
+    {"name": "腹筋(自重)",            "muscle": "腹",   "size": "small"},
+    {"name": "プランク",              "muscle": "体幹",  "size": "small"},
+    {"name": "カーフレイズ",           "muscle": "ふくらはぎ", "size": "small"},
+    {"name": "トレッドミル(早歩き)",    "muscle": "有酸素", "size": "cardio"},
+    {"name": "バイク",                "muscle": "有酸素", "size": "cardio"},
+    {"name": "クロストレーナー",        "muscle": "有酸素", "size": "cardio"},
+]
+
+EX_BY_NAME = {e["name"]: e for e in EXERCISES}
+
+
+def workout_summary(con, days=7):
+    """直近の筋トレ内容。大筋群をやれているかを見る。"""
+    since = (date.today() - timedelta(days=days - 1)).isoformat()
+    rows = con.execute("SELECT * FROM workouts WHERE date>=? ORDER BY date", (since,)).fetchall()
+    big = {r["name"] for r in rows if r["size"] == "big"}
+    small = {r["name"] for r in rows if r["size"] == "small"}
+    cardio = [r for r in rows if r["size"] == "cardio"]
+    return {
+        "count": len(rows), "days": days,
+        "session_days": len({r["date"] for r in rows}),
+        "big": sorted(big), "small": sorted(small),
+        "cardio_min": sum(r["minutes"] or 0 for r in cardio),
+        "muscles": sorted({r["muscle"] for r in rows if r["size"] != "cardio"}),
+    }
+
+
 # ── 睡眠の習慣チェックリスト ───────────────────────────────────────────────
 # 不眠症の認知行動療法(CBT-I)と睡眠衛生指導でよく使われる項目を、
 # その日やったかどうかで答えられる形にしたもの。
@@ -494,7 +616,8 @@ def _msg(level, title, body, tag=""):
     return {"level": level, "title": title, "body": body, "tag": tag}
 
 
-def build_advice(con, prof, d, weight, t, intake, trend, bp7, sleep14, sas, day_row):
+def build_advice(con, prof, d, weight, t, intake, trend, bp7, sleep14, sas, day_row,
+                 comp=None, wk=None):
     """その日の状況から、出すべき指示を組み立てる。上から重要な順。"""
     msgs = []
     log_days = trend["days"]
@@ -638,7 +761,45 @@ def build_advice(con, prof, d, weight, t, intake, trend, bp7, sleep14, sas, day_
                          "就寝・起床時刻と、朝の目覚めの感じ(1〜5)だけで十分です。"
                          "何が効いたのかは記録がないと分かりません。", "睡眠"))
 
-    # 7) 運動・活動量
+    # 7) 筋トレ。減量中は「落とす体重の中身」を決めるのがここ
+    wk = wk or {"count": 0}
+    if wk.get("count"):
+        if not wk["big"] and wk["small"]:
+            msgs.append(_msg("warn", "大きい筋肉を先にやりましょう",
+                             "直近7日でやったのは %s だけです。腕や腹は小さい筋肉なので、"
+                             "いくらやってもその部位の脂肪は落ちません(部分やせは起きない)。"
+                             "脚・背中・胸の3つは、使う筋肉の量が桁違いで、消費カロリーも"
+                             "筋肉を守る効果も大きい。レッグプレス・ラットプルダウン・"
+                             "チェストプレスの3種目を先に入れて、腕と腹はそのあと余力でやる、"
+                             "の順番にしてください。" % "、".join(wk["small"]), "運動"))
+        elif wk["big"]:
+            msgs.append(_msg("good", "筋トレ %d日 / 大きい筋肉 %d種目"
+                             % (wk["session_days"], len(wk["big"])),
+                             "この順番で合っています。減量中の筋トレは「筋肉を増やす」ためでは"
+                             "なく「落ちる体重の中身を脂肪に寄せる」ためのものなので、"
+                             "重量が伸びなくても続ける価値があります。", "運動"))
+        if wk["cardio_min"] < 150 and (bp7.get("level") in ("warn", "alert")):
+            msgs.append(_msg("info", "有酸素が週 %d分(目安150分)" % wk["cardio_min"],
+                             "血圧に効くのは筋トレより有酸素です。筋トレのあとに"
+                             "トレッドミルで早歩き20〜30分を足すのが、いま一番効率がいい形。", "運動"))
+        if bp7.get("level") in ("warn", "alert") or prof.get("on_bp_medication"):
+            msgs.append(_msg("warn", "血圧が高いときの筋トレの注意",
+                             "重いものを持つとき息を止めて力むと(いきむと)、その瞬間に血圧が"
+                             "大きく跳ね上がります。①息を止めない(力を入れるときに吐く)"
+                             "②1セット10回以上できる重さにする(限界まで追い込まない)"
+                             "③セット間は十分に休む。これを守れば筋トレは続けて問題ありません。", "運動"))
+
+    # 8) 体組成
+    if comp:
+        msgs.append(_msg("good", "筋肉量 %skg / 体脂肪率 %.1f%%"
+                         % (comp.get("muscle_kg") or "—", comp["body_fat"]),
+                         "除脂肪体重が %.1fkg あります。これは大きな武器で、"
+                         "基礎代謝が高く保たれているぶん脂肪を落としやすい状態です。"
+                         "この先の目標は「%.1fkgの体脂肪を落として、除脂肪体重は守る」こと。"
+                         "体重だけでなく体脂肪率も月1回は測ってください。"
+                         % (comp["lean"], comp["fat_kg"]), "体重"))
+
+    # 9) 歩数
     steps = (day_row["steps"] if day_row else None) or 0
     if steps and steps < prof["step_target"] * 0.6:
         msgs.append(_msg("info", "今日は %d歩(目標 %d歩)" % (steps, prof["step_target"]),
@@ -648,7 +809,7 @@ def build_advice(con, prof, d, weight, t, intake, trend, bp7, sleep14, sas, day_
         msgs.append(_msg("good", "%d歩 — 目標達成" % steps,
                          "歩数は減量よりむしろ血圧と睡眠に効きます。", "運動"))
 
-    # 8) 習慣チェックの未達
+    # 10) 習慣チェックの未達
     habits = get_habits(con, d)
     undone = [h for h in habits if not h["done"]]
     if len(undone) >= 5 and log_days >= 3:
@@ -673,7 +834,8 @@ def dashboard(con, d=None):
     d = d or date.today().isoformat()
     prof = get_profile(con)
     weight = current_weight(con, prof)
-    t = targets(prof, weight)
+    comp = latest_comp(con, prof, weight)
+    t = targets(prof, weight, comp)
     intake = day_intake(con, d)
     trend = weight_trend(con)
     bp7 = bp_summary(con, 7)
@@ -694,7 +856,12 @@ def dashboard(con, d=None):
         "to_goal": round(weight - prof["goal_weight"], 1),
         "lost": round(prof["start_weight"] - weight, 1),
         "targets": t,
-        "projection": project(prof, weight),
+        "comp": comp,
+        "projection": project(prof, weight, comp),
+        "exercises": EXERCISES,
+        "workouts": [dict(r) for r in con.execute(
+            "SELECT * FROM workouts WHERE date=? ORDER BY id", (d,))],
+        "workout7": workout_summary(con, 7),
         "intake": intake,
         "remaining": {"kcal": t["kcal"] - intake["kcal"],
                       "protein": round(t["protein"] - intake["protein"], 1),
@@ -723,7 +890,8 @@ def build(con, d=None):
     data["advice"] = build_advice(
         con, data["profile"], data["date"], data["weight"], data["targets"],
         data["intake"], data["trend"], data["bp7"], data["sleep"], data["sas"],
-        con.execute("SELECT * FROM days WHERE date=?", (data["date"],)).fetchone())
+        con.execute("SELECT * FROM days WHERE date=?", (data["date"],)).fetchone(),
+        data["comp"], data["workout7"])
     return data
 
 

@@ -101,7 +101,8 @@ class Handler(BaseHTTPRequestHandler):
             "SELECT date, minutes, quality FROM sleep WHERE date>=? ORDER BY date",
             (since,)).fetchall()
         days_rows = con.execute(
-            "SELECT date, weight, steps, condition FROM days WHERE date>=? ORDER BY date",
+            "SELECT date, weight, body_fat, muscle_kg, steps, condition FROM days"
+            " WHERE date>=? ORDER BY date",
             (since,)).fetchall()
         return {
             "weights": coach.weight_trend(con)["points"],
@@ -109,6 +110,9 @@ class Handler(BaseHTTPRequestHandler):
             "bp": coach.bp_series(con, days),
             "sleep": [dict(r) for r in sleeps],
             "days": [dict(r) for r in days_rows],
+            "workouts": [dict(r) for r in con.execute(
+                "SELECT date, name, muscle, size, sets, reps, weight, minutes FROM workouts"
+                " WHERE date>=? ORDER BY date DESC, id DESC", (since,))],
         }
 
     def _export(self, con, kind):
@@ -127,15 +131,17 @@ class Handler(BaseHTTPRequestHandler):
                             r["quality"], r["awakenings"], r["sleepiness"]])
             fname = "sleep.csv"
         else:
-            w.writerow(["日付", "体重", "摂取kcal", "たんぱく質g", "食塩g", "歩数"])
+            w.writerow(["日付", "体重", "体脂肪率", "筋肉量", "摂取kcal",
+                        "たんぱく質g", "食塩g", "歩数"])
             rows = con.execute(
-                "SELECT d.date, d.weight, d.steps,"
+                "SELECT d.date, d.weight, d.body_fat, d.muscle_kg, d.steps,"
                 " (SELECT ROUND(SUM(kcal)) FROM meals m WHERE m.date=d.date) kcal,"
                 " (SELECT ROUND(SUM(p),1) FROM meals m WHERE m.date=d.date) p,"
                 " (SELECT ROUND(SUM(salt),1) FROM meals m WHERE m.date=d.date) salt"
                 " FROM days d ORDER BY d.date")
             for r in rows:
-                w.writerow([r["date"], r["weight"], r["kcal"], r["p"], r["salt"], r["steps"]])
+                w.writerow([r["date"], r["weight"], r["body_fat"], r["muscle_kg"],
+                            r["kcal"], r["p"], r["salt"], r["steps"]])
             fname = "kiroku.csv"
         body = "﻿" + buf.getvalue()          # Excelで開いても文字化けしないBOM付き
         data = body.encode("utf-8")
@@ -161,6 +167,8 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/day": self._post_day,
                 "/api/meal": self._post_meal,
                 "/api/meal/delete": self._post_meal_delete,
+                "/api/workout": self._post_workout,
+                "/api/workout/delete": self._post_workout_delete,
                 "/api/bp": self._post_bp,
                 "/api/bp/delete": self._post_bp_delete,
                 "/api/sleep": self._post_sleep,
@@ -181,11 +189,12 @@ class Handler(BaseHTTPRequestHandler):
     def _post_day(self, con, b):
         d = b.get("date") or _today()
         con.execute("INSERT OR IGNORE INTO days(date) VALUES(?)", (d,))
-        for col in ("weight", "steps", "exercise_min", "condition", "note"):
+        for col in ("weight", "steps", "exercise_min", "condition",
+                    "body_fat", "muscle_kg", "note"):
             if col not in b:
                 continue
             val = b[col]
-            if col == "weight":
+            if col in ("weight", "body_fat", "muscle_kg"):
                 val = _num(val)
             elif col != "note":
                 val = _num(val, int)
@@ -219,6 +228,25 @@ class Handler(BaseHTTPRequestHandler):
 
     def _post_meal_delete(self, con, b):
         con.execute("DELETE FROM meals WHERE id=?", (b.get("id"),))
+        con.commit()
+
+    def _post_workout(self, con, b):
+        name = (b.get("name") or "").strip()
+        if not name:
+            raise ValueError("種目を選んでください")
+        e = coach.EX_BY_NAME.get(name, {"muscle": b.get("muscle") or "その他",
+                                        "size": b.get("size") or "small"})
+        con.execute(
+            "INSERT INTO workouts(date,name,muscle,size,sets,reps,weight,minutes,created_at)"
+            " VALUES(?,?,?,?,?,?,?,?,?)",
+            (b.get("date") or _today(), name, e["muscle"], e["size"],
+             _num(b.get("sets"), int), _num(b.get("reps"), int),
+             _num(b.get("weight"), float), _num(b.get("minutes"), int),
+             datetime.now().isoformat(timespec="seconds")))
+        con.commit()
+
+    def _post_workout_delete(self, con, b):
+        con.execute("DELETE FROM workouts WHERE id=?", (b.get("id"),))
         con.commit()
 
     def _post_bp(self, con, b):
@@ -263,6 +291,8 @@ class Handler(BaseHTTPRequestHandler):
             vals.pop("activity")
         if "pace" in vals and vals["pace"] not in coach.PACE:
             vals.pop("pace")
+        if "bmr_formula" in vals and vals["bmr_formula"] not in ("mifflin", "katch"):
+            vals.pop("bmr_formula")
         vals["profile_confirmed"] = 1
         coach.set_profile(con, vals)
 
