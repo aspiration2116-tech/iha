@@ -185,7 +185,8 @@ function render(){
 function bar(label, now, goal, opt){
   opt = opt || {};
   const pct = goal > 0 ? Math.min(now / goal * 100, 100) : 0;
-  const over = opt.lowerIsBetter ? now > goal : now > goal * 1.1;
+  // 超えて困るのはカロリーと食塩だけ。たんぱく質は多い分には問題ないので色を変えない
+  const over = opt.lowerIsBetter ? now > goal : (!opt.okOver && now > goal * 1.1);
   return `<div class="blab"><span>${label}</span><b>${opt.fmt ? opt.fmt(now) : Math.round(now)}
     <span style="color:var(--sub);font-weight:400"> / ${opt.fmt ? opt.fmt(goal) : Math.round(goal)}${opt.unit||""}</span></b></div>
     <div class="bar"><i class="${over ? (opt.lowerIsBetter?"bad":"over") : ""}" style="width:${pct}%"></i></div>`;
@@ -206,7 +207,7 @@ function viewToday(){
   <div class="card">
     <h2>今日の食事</h2>
     ${bar("カロリー", i.kcal, t.kcal, {unit:" kcal"})}
-    ${bar("たんぱく質", i.protein, t.protein, {unit:" g", fmt:v=>v.toFixed(0)})}
+    ${bar("たんぱく質", i.protein, t.protein, {unit:" g", okOver:true, fmt:v=>v.toFixed(0)})}
     ${bar("食塩", i.salt, t.salt, {unit:" g", lowerIsBetter:true, fmt:v=>v.toFixed(1)})}
     <p class="note">残り <b style="color:var(--ink)">${r.kcal} kcal</b> ／
       たんぱく質あと ${Math.max(r.protein,0).toFixed(0)}g ／
