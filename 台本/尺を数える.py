@@ -42,14 +42,12 @@ def main() -> None:
         CPM = int(sys.argv[sys.argv.index("--cpm") + 1])
     txt = open(path, encoding="utf-8").read()
 
-    # 「## 【時刻】…」の見出しが続くあいだが本編。時刻の付かない ## が出たら終わり
-    start = txt.index("## 【")
-    sections = []
-    for sec in re.split(r"\n(?=## )", txt[start:]):
-        if not sec.startswith("## 【"):
-            break
-        if sec.strip():
-            sections.append(sec)
+    # 本編のセクション = シーン番号（**S01** など）を含む「## 」見出し。
+    # 時刻が入っていない新規台本でも動く（初回は見出しに時刻を書かなくてよい）。
+    sections = [s for s in re.split(r"\n(?=## )", txt)
+                if s.startswith("## ") and re.search(r"^\*\*S\d+[a-z]?\*\*$", s, re.M)]
+    if not sections:
+        raise SystemExit("本編が見つかりません（**S01** のようなシーン番号を含む「## 」見出しが要ります）")
 
     total = sum(count(s) for s in sections)
     print(f"合計 {total:,}字 → {mmss(total / CPM)}（{CPM}字/分）")
