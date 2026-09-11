@@ -709,6 +709,21 @@ def build_advice(con, prof, d, weight, t, intake, trend, bp7, sleep14, sas, day_
                              "取り返そうとして翌日を極端に減らすと、反動でまた増えます。"
                              "明日はいつもどおりに戻すだけでOK。代わりに今日は20分多く歩きましょう。", "食事"))
 
+        # カロリーの「量」ではなく「中身」を見る。たんぱく質の密度が低いと、
+        # 総カロリーが目標内でも筋肉が落ちる食べ方になっている
+        if intake["kcal"] >= 500:
+            density = intake["protein"] / intake["kcal"] * 100      # 100kcalあたりg
+            want = t["protein"] / t["kcal"] * 100
+            if density < want * 0.6:
+                msgs.append(_msg("warn", "中身が炭水化物に寄っています",
+                                 "ここまで %dkcal 食べてたんぱく質は %.0fg。"
+                                 "100kcalあたり %.1fg で、必要な密度(%.1fg)の半分以下です。"
+                                 "カロリーは残っていても、この食べ方を続けると"
+                                 "減る体重の中身が筋肉に寄ります。残りの食事は"
+                                 "「主食を足す」より「肉・魚・卵・豆腐・ヨーグルトを足す」"
+                                 "を優先してください。"
+                                 % (intake["kcal"], intake["protein"], density, want), "食事"))
+
         if intake["protein"] < t["protein"] * 0.7 and intake["kcal"] > t["kcal"] * 0.6:
             msgs.append(_msg("warn", "たんぱく質が足りていません(%.0f/%dg)"
                              % (intake["protein"], t["protein"]),
@@ -966,23 +981,55 @@ EX_ALIAS = {
 }
 
 
+# 食品のよくある略称・言い換え
+FOOD_ALIAS = {
+    "ポテチ": "ポテトチップス 1袋", "ポテトチップス": "ポテトチップス 1袋",
+    "たまご": "卵 1個", "玉子": "卵 1個", "タマゴ": "卵 1個",
+    "とうふ": "木綿豆腐 半丁", "豆腐": "木綿豆腐 半丁",
+    "コーヒー": "ブラックコーヒー", "珈琲": "ブラックコーヒー",
+    "水": "お茶・水", "お茶": "お茶・水", "麦茶": "お茶・水", "緑茶": "お茶・水",
+    "ヨーグルト": "ヨーグルト 無糖", "チーズ": "プロセスチーズ 1個",
+    "ビール": "ビール 350ml", "ハイボール": "ハイボール 1杯",
+    "焼酎": "焼酎 水割り1杯", "日本酒": "日本酒 1合", "ワイン": "ワイン グラス1杯",
+    "鶏むね": "鶏むね肉 皮なし", "むね肉": "鶏むね肉 皮なし", "ささみ": "ささみ",
+    "牛乳": "牛乳", "豆乳": "無調整豆乳", "納豆": "納豆 1パック(タレ込み)",
+    "トマジュ": "トマトジュース 有塩",
+}
+
+
 def _norm(t):
     return t.replace("　", " ").replace("×", "x").replace("X", "x").strip()
 
 
-def find_food(con, token):
-    """食品名のゆるい一致。完全一致 > 前方一致 > 部分一致 の順で、よく使う順に選ぶ。"""
-    token = token.strip()
+def find_food(con, token, allow_approx=True):
+    """食品名のゆるい一致。完全一致 > 前方一致 > 部分一致 の順で、よく使う順に選ぶ。
+
+    見つからないときは語尾を削りながら探す(「にんじんのおかず」→「にんじん」)。
+    その場合は approx=1 を立てて、推定で拾ったことが分かるようにする。
+    """
+    token = (token or "").strip()
     if not token:
         return None
+    token = FOOD_ALIAS.get(token, token)
+
+    def look(sql, arg):
+        return con.execute("SELECT * FROM foods WHERE " + sql + " ORDER BY used DESC, id",
+                           (arg,)).fetchone()
+
     for sql, arg in (("name = ?", token),
                      ("name LIKE ?", token + "%"),
                      ("name LIKE ?", "%" + token + "%")):
-        rows = con.execute(
-            "SELECT * FROM foods WHERE " + sql + " ORDER BY used DESC, id",
-            (arg,)).fetchall()
-        if rows:
-            return rows[0]
+        row = look(sql, arg)
+        if row:
+            return dict(row, approx=0)
+
+    if allow_approx:
+        for n in range(len(token) - 1, 1, -1):
+            head = token[:n]
+            row = look("name LIKE ?", head + "%") or (
+                look("name LIKE ?", "%" + head + "%") if n >= 3 else None)
+            if row:
+                return dict(row, approx=1)
     return None
 
 
@@ -1035,7 +1082,14 @@ FOOD_HINTS = {"汁残し": "汁を残す", "汁を残す": "汁を残す", "ス�
 def _consume_foods(con, toks, slot, d, now, done, unknown, hints=None):
     """食品名は「鶏むね肉 皮なし」のように空白を含むので、長い並びから順に試す。"""
     i = 0
+    last = None          # 直前に記録した食事のid。「2杯」のような後置の数量に使う
     while i < len(toks):
+        m = re.match(r"^([0-9.]+)\s*(?:杯|個|枚|本|人前|袋|パック|切れ|串|皿)$", toks[i])
+        if m and last:
+            _scale_meal(con, last, float(m.group(1)))
+            done[-1] = _meal_label(con, last, done[-1])
+            i += 1
+            continue
         hit = False
         for n in (3, 2, 1):
             if i + n > len(toks):
@@ -1046,17 +1100,40 @@ def _consume_foods(con, toks, slot, d, now, done, unknown, hints=None):
             if m and m.group(1):
                 chunk[-1], qty = m.group(1), float(m.group(2))
             phrase = " ".join(chunk)
-            if n > 1 and not find_food(con, phrase):
+            if n > 1 and not find_food(con, phrase, allow_approx=False):
                 continue
-            ok, msg = _parse_food(con, phrase, slot, d, now, qty, hints)
+            ok, msg = _parse_food(con, phrase, slot, d, now, qty, hints,
+                                  allow_approx=(n == 1))
             if ok or n == 1:
                 (done if ok else unknown).append(msg)
+                last = con.execute("SELECT MAX(id) m FROM meals").fetchone()["m"] if ok else None
                 i += n
                 hit = True
                 break
         if not hit:
             i += 1
     return done, unknown
+
+
+def _scale_meal(con, meal_id, qty):
+    """すでに入れた食事の量を倍にする(「お茶漬け 2杯」の2杯ぶん)。"""
+    r = con.execute("SELECT * FROM meals WHERE id=?", (meal_id,)).fetchone()
+    if not r or not r["qty"]:
+        return
+    k = qty / r["qty"]
+    con.execute("UPDATE meals SET qty=?, kcal=?, p=?, f=?, c=?, salt=? WHERE id=?",
+                (qty, round(r["kcal"] * k, 1), round(r["p"] * k, 1), round(r["f"] * k, 1),
+                 round(r["c"] * k, 1), round(r["salt"] * k, 2), meal_id))
+
+
+def _meal_label(con, meal_id, fallback):
+    r = con.execute("SELECT * FROM meals WHERE id=?", (meal_id,)).fetchone()
+    if not r:
+        return fallback
+    mark = "≈ " if fallback.startswith("≈ ") else ""
+    return "%s%s %s%s (%dkcal 塩%.1fg)" % (
+        mark, r["slot"], r["name"], "" if r["qty"] == 1 else " x%g" % r["qty"],
+        r["kcal"], r["salt"])
 
 
 def _extract_metrics(con, text, d, now):
@@ -1183,7 +1260,7 @@ def _slot_by_clock():
     return "朝" if h < 10 else "昼" if h < 15 else "夕" if h < 22 else "間食"
 
 
-def _parse_food(con, tok, slot, d, now, qty=1.0, hints=None):
+def _parse_food(con, tok, slot, d, now, qty=1.0, hints=None, allow_approx=True):
     """食品名(空白を含むこともある)を記録する。『700kcal』のような直接指定も受ける。"""
     m = re.match(r"^(.*?)([0-9]+)kcal$", tok)
     if m:
@@ -1192,7 +1269,7 @@ def _parse_food(con, tok, slot, d, now, qty=1.0, hints=None):
                     (d, slot, m.group(1) or "手入力", float(m.group(2)), now))
         return (True, "%s %s %skcal" % (slot, m.group(1) or "手入力", m.group(2)))
 
-    f = find_food(con, tok)
+    f = find_food(con, tok, allow_approx)
     if not f:
         return (False, tok)
     for h in (hints or ()):
@@ -1201,7 +1278,7 @@ def _parse_food(con, tok, slot, d, now, qty=1.0, hints=None):
             "SELECT * FROM foods WHERE name LIKE ? AND name LIKE ? ORDER BY id LIMIT 1",
             (tok + "%", "%" + want + "%")).fetchone()
         if alt:
-            f = alt
+            f = dict(alt, approx=0)
             break
     con.execute("INSERT INTO meals(date,slot,name,qty,kcal,p,f,c,salt,created_at)"
                 " VALUES(?,?,?,?,?,?,?,?,?,?)",
@@ -1209,7 +1286,9 @@ def _parse_food(con, tok, slot, d, now, qty=1.0, hints=None):
                  round(f["f"] * qty, 1), round(f["c"] * qty, 1), round(f["salt"] * qty, 2), now))
     con.execute("UPDATE foods SET used=used+1 WHERE id=?", (f["id"],))
     label = f["name"] + ("" if qty == 1 else " x%g" % qty)
-    return (True, "%s %s (%dkcal 塩%.1fg)" % (slot, label, f["kcal"] * qty, f["salt"] * qty))
+    mark = "≈ " if f.get("approx") else ""
+    return (True, "%s%s %s (%dkcal 塩%.1fg)"
+            % (mark, slot, label, f["kcal"] * qty, f["salt"] * qty))
 
 
 # ── コマンドライン ─────────────────────────────────────────────────────────
