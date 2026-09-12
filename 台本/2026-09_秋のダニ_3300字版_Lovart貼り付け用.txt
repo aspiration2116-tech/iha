@@ -1,0 +1,143 @@
+秋のダニ台本(3300字版) / 画像生成プロンプト（Lovart 貼り付け用・いらすとや風）
+STYLE は各プロンプトに展開済み。1ブロックをそのままコピーして貼る。
+対応台本: 台本/2026-09_秋のダニ_台本_3300字版.md（S01〜S46、1シーン=1枚）
+==============================================================================
+
+[C01]
+A simple flat illustration of a person sitting up in bed in the morning, sneezing into a tissue, eyes closed. A plain futon and pillow beside them. Soft morning light suggested by a pale yellow background. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C02]
+A flat illustration of a wall calendar showing autumn, with small falling leaf icons around it. Simple, clean, minimal. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C03]
+A flat illustration of two identical cleaning tool icons (a vacuum cleaner and a futon dryer) with a curved arrow between them suggesting their order should be swapped. Clean, symbolic, minimal. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C04]
+A flat illustration of a vacuum cleaner and a washing machine side by side, simple and friendly, with a small check mark icon above them. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C05]
+A flat illustration of a futon dryer machine next to a folded futon, with a small "optional" style dashed outline around the dryer to suggest it's not required. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C06]
+A flat illustration of a simple calendar timeline showing summer fading into autumn, with a small abstract dust-mite-shaped icon (simplified, non-realistic, cute) shrinking along the timeline. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C07]
+A flat illustration of a folded futon with small abstract sparkle or dust particle icons around it, suggesting accumulated residue. Not insects, just abstract specks. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C08]
+A flat illustration of a simple side profile face with a thought bubble containing a question mark, looking at a futon. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C09]
+A flat illustration of two simple labeled-free icons: a small skull-and-crossbones-free abstract shape (representing residue, not insects) and a cloud of fine dust particles above a futon. Non-scary, abstract. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C10]
+A flat illustration of two icons side by side: a futon under direct sun rays (sun icon above) and a person holding a futon-beater, both with a small red "X" mark nearby to suggest caution. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C11]
+A flat illustration of a futon hanging on a balcony rail under a bright sun icon, with one side highlighted brighter than the other side (still shaded), showing uneven sun exposure. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C12]
+A flat illustration of a futon on a balcony rail with small wavy steam/moisture icons rising off it, suggesting moisture leaving. Soft and simple. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C13]
+A flat illustration of a hand holding a futon-beater near a futon, with small dust cloud particles flying up around the impact point. Simple, not violent looking. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C14]
+A flat illustration of two simple icons side by side: a heat/sun symbol and a vacuum cleaner icon, connected by a numbered "1, 2" sequence indicator. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C15]
+A flat illustration of the same heat icon and vacuum icon, but shown with a reversible arrow between them and a small confused face icon, suggesting the order matters. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C16]
+A flat illustration of a heat/sun icon with a large "1" next to it, and a vacuum cleaner icon with a large "2" next to it, connected by a simple arrow. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C17]
+A flat illustration of a futon dryer machine attached to a futon, with a small thought bubble above showing a simple checkmark, suggesting the heating step is done. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C18]
+A flat illustration of a person sneezing again the next morning, with a small clock icon showing "next day" nearby, and a puzzled expression. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C19]
+A flat illustration of a futon with small abstract dust particle icons still resting on its surface, next to a vacuum cleaner icon waiting nearby. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C20]
+A flat illustration of a simple abstract fiber texture (like fabric weave lines) with a tiny non-scary cartoon claw-shape icon gripping onto it, very simplified and not insect-like. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C21]
+A flat illustration split into two panels: left shows a vacuum cleaner icon crossed out with a red X in front of a futon, right shows a heat icon with a checkmark, suggesting wrong order. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C22]
+A flat illustration of a heat icon with a large "1" and a vacuum cleaner icon with a large "2", both inside a single highlighted box, suggesting this is the key takeaway. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C23]
+A flat illustration of a simple coin or yen symbol with a red "X" through it, next to a vacuum cleaner and futon dryer icon, suggesting no extra cost. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C24]
+A flat illustration of a futon dryer machine with a simple clock icon showing "1 hour" next to it, attached to a folded futon. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C25]
+A flat illustration of a futon covered by a simple blanket/cover shape with the dryer hose tucked underneath, suggesting heat being trapped inside. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C26]
+A flat illustration of a coin laundry storefront with a simple washing machine icon in the window and a car icon parked outside. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C27]
+A flat illustration of a vacuum cleaner and a washing machine icon side by side with a small reassuring checkmark above them, and a futon dryer icon faded/grayed out in the background to suggest it's optional. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C28]
+A flat illustration of a vacuum cleaner with three small numbered tag icons (1, 2, 3) floating near it. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C29]
+A flat illustration of a vacuum cleaner nozzle moving very slowly across a futon surface, with a simple clock icon showing "2 min" nearby. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C30]
+A flat illustration of a futon with two overlapping arrow icons, one vertical and one horizontal, showing crossing vacuum directions. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C31]
+A flat illustration of a futon placed on top of a bed frame (raised off the floor), with a person standing comfortably vacuuming it, in contrast to a crossed-out icon of someone bending down on the floor. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C32]
+A flat illustration of a washing machine with a pillowcase and bedsheet icon going into it. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C33]
+A flat illustration of a washing machine icon and a heat/sun icon side by side, both pointing toward the same simple fabric fiber icon, suggesting both methods target the same problem differently. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C34]
+A flat illustration of a weekly calendar grid with two days highlighted/circled, suggesting washing twice a week. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C35]
+A flat illustration of a simple living room scene with a rug, a sofa, and a small plush toy, each with a subtle dust-particle icon nearby. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C36]
+A flat illustration of a vacuum cleaner being used slowly on a fluffy rug, and a sofa cushion cover being removed for washing, shown as two simple side-by-side icons. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C37]
+A flat illustration of a cute plush teddy bear toy sitting on a shelf, with a small vacuum cleaner nozzle gently touching its surface. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C38]
+A flat illustration of a simple checklist icon with two empty checkboxes, clean and minimal. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C39]
+A flat illustration of two small icons with red "X" marks: a futon under sun rays alone, and a futon-beater, both crossed out. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C40]
+A flat illustration of a heat icon with "1" and a vacuum cleaner icon with "2" inside a single highlighted star-bordered box, as a clear takeaway visual. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C41]
+A flat illustration of a vacuum cleaner and washing machine icon with a small sun/ smile icon above them, suggesting a slightly better morning ahead. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C42]
+A flat illustration of a pillowcase going into a washing machine, with a simple "start" button being pressed by a cartoon hand. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C43]
+A flat illustration of a simple pillow icon with a small "next episode" play-button style arrow icon beside it. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C44]
+A flat illustration of three different pillow-filling icons side by side: buckwheat husks, feathers, and memory foam, each simplified and labeled with a small icon (no text). STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C45]
+A flat illustration of a simple thumbs-up icon and a bell/notification icon side by side, cheerful and clean. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
+[C46]
+A flat illustration of a simple waving hand icon with a small heart icon nearby, warm and friendly closing visual. STYLE: Japanese "irasutoya" flat illustration style. Simple, rounded, friendly line art. Flat colors, soft pastel palette (pale yellow, soft blue, mint green, warm beige), thin uniform black outlines, minimal shading, no gradients, no photorealism. Plain white or very pale solid background. Slightly naive, hand-drawn charm. No text, no letters, no numbers, no watermarks, no logos. 16:9 aspect ratio.
+
