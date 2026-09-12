@@ -34,6 +34,23 @@ def count(section_body: str) -> int:
     return len(re.sub(r"[、。「」──…・（）]", "", "".join(lines)))
 
 
+def vrew_chars(sections: list) -> int:
+    """Vrew貼り付け用テキスト（1シーン=1段落、段落間は空行）の総文字数。
+
+    **発注で言われる「3,300字」はこの数字。** 句読点も改行も含む。
+    句読点を除いた count() の数字と混同しないこと（差が400字以上出て、
+    過去に一度この取り違えで尺を大幅に超過させた）。
+    """
+    paragraphs = []
+    for sec in sections:
+        for part in re.split(r"\*\*S\d+[a-z]?\*\*", sec)[1:]:
+            lines = [l.strip().replace("**", "") for l in part.split("\n")
+                     if l.strip() and l.strip() != "---" and not l.strip().startswith("##")]
+            if lines:
+                paragraphs.append("".join(lines))
+    return len(("\n\n".join(paragraphs) + "\n"))
+
+
 def main() -> None:
     global CPM
     path = sys.argv[1]
@@ -50,7 +67,8 @@ def main() -> None:
         raise SystemExit("本編が見つかりません（**S01** のようなシーン番号を含む「## 」見出しが要ります）")
 
     total = sum(count(s) for s in sections)
-    print(f"合計 {total:,}字 → {mmss(total / CPM)}（{CPM}字/分）")
+    print(f"★ Vrew文字数 {vrew_chars(sections):,}字（発注時の「3,300字」はこの数字。改行・句読点を含む）")
+    print(f"合計 {total:,}字 → {mmss(total / CPM)}（{CPM}字/分・句読点を除いた実文字数）")
     print(f"  350字/分なら {mmss(total / 350)} / 300字/分なら {mmss(total / 300)}\n")
 
     cumulative = 0
