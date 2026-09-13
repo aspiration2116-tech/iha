@@ -66,14 +66,29 @@ def bigrams(s: str) -> set[str]:
     return {s[i:i + 2] for i in range(len(s) - 1)}
 
 
+TABLE_HEADS = ("## 事実の根拠", "## A. 出典のある事実")
+
+
+def table_start(tail: str) -> int:
+    """A表/B表が始まる位置。見出しの書き方が2通りあるので、先に出てくるほうを採る。
+
+    ⚠️ 以前は「## 事実の根拠」しか探していなかったため、
+    見出しを「## A. 出典のある事実」にした台本では**表を1行も見ておらず**、
+    ②と⑤が常に「なし」、①が本編全体、という空回りをしていた。
+    """
+    found = [tail.find(h) for h in TABLE_HEADS]
+    found = [i for i in found if i >= 0]
+    return min(found) if found else -1
+
+
 def table_rows(tail: str) -> list[tuple[str, list[str]]]:
     """A表/B表の各行から（主張のセル, その行が挙げるシーン番号）を取り出す。
 
-    見るのは「## 事実の根拠」以降だけ。自己チェックや改稿ログの表は、
+    見るのは A表/B表 の見出し以降だけ。自己チェックや改稿ログの表は、
     1列目が「S49」「B表 S45」のような**見出しラベル**なので、主張として比べられない。
     """
     rows = []
-    i = tail.find("## 事実の根拠")
+    i = table_start(tail)
     if i < 0:
         return rows
     for line in tail[i:].split("\n"):
@@ -99,7 +114,7 @@ def main() -> None:
     scenes = scenes_of(body)
     # 参照とみなすのは A表/B表 だけ。改稿ログや自己チェックは「S40bを消した」と
     # **消した番号を書くのが正しい**ので、そこを参照に数えると必ず誤検出になる。
-    i = tail.find("## 事実の根拠")
+    i = table_start(tail)
     referenced = set(re.findall(r"S\d+[a-z]?", tail[i:] if i >= 0 else ""))
 
     print(f"本編 {len(scenes)} シーン / 表が参照 {len(referenced & set(scenes))} シーン\n")
