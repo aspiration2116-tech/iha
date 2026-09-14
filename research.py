@@ -84,6 +84,15 @@ CREATE TABLE IF NOT EXISTS memos (
   created_at TEXT,
   updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS sedori_posts (
+  url        TEXT PRIMARY KEY,
+  text       TEXT,
+  author     TEXT,
+  posted_at  TEXT,
+  query      TEXT,
+  first_seen TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sedori_posted ON sedori_posts(posted_at);
 """
 
 MIGRATIONS = [
@@ -111,6 +120,17 @@ DEFAULT_CONFIG = {
     "request_interval_sec": 1.6,
     "deep_scan_top_n": 18,
     "notify_new_favorites": True,
+    # せどり(Xから仕入れネタを拾う)。APIキー・課金は使わない
+    "sedori_enabled": True,
+    "sedori_keywords": [
+        "せどり 仕入れ", "店舗せどり 値下げ", "在庫処分 半額", "再販 入荷",
+        "ポケカ 再販", "一番くじ 在庫", "家電 処分価格", "トイザらス クリアランス"
+    ],
+    "sedori_exclude_words": [],
+    "sedori_window_hours": 48,
+    "sedori_per_query": 30,
+    "sedori_fee_rate": 0.10,
+    "sedori_ship_cost": 600,
     "port": 8770
 }
 
@@ -417,6 +437,20 @@ def discover_rivals(con, cfg, found):
     con.commit()
 
 
+# ---------------------------------------------------------------- せどり
+
+def collect_sedori(con, cfg):
+    """Xからせどりネタを拾って貯める。ここが失敗しても本体の収集は止めない。"""
+    if not cfg.get("sedori_enabled"):
+        return
+    try:
+        import sedori
+        sedori.collect(con, cfg, log=log)
+        sedori.write_report(sedori.build(con, cfg), BASE)
+    except Exception as e:  # noqa: BLE001
+        log("  ! せどり収集に失敗 (%s)" % e)
+
+
 # ---------------------------------------------------------------- main
 
 def run(quick=False, deep=False):
@@ -436,6 +470,7 @@ def run(quick=False, deep=False):
             refresh_channel_meta(con, cfg, missing)
         con.commit()
         notify_new_favorite_videos(con, cfg, started)
+        collect_sedori(con, cfg)
         import analysis
         report = analysis.write_report(con, BASE)
         con.execute("INSERT OR REPLACE INTO runs(ts,ok,detail) VALUES(?,1,?)",

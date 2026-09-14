@@ -27,5 +27,21 @@
   "exclude_shorts": true,
   "request_interval_sec": 1.6,
   "deep_scan_top_n": 18,
+  "sedori_enabled": true,
+  "sedori_keywords": [
+    "せどり 仕入れ",
+    "店舗せどり 値下げ",
+    "在庫処分 半額",
+    "再販 入荷",
+    "ポケカ 再販",
+    "一番くじ 在庫",
+    "家電 処分価格",
+    "トイザらス クリアランス"
+  ],
+  "sedori_exclude_words": [],
+  "sedori_window_hours": 48,
+  "sedori_per_query": 30,
+  "sedori_fee_rate": 0.1,
+  "sedori_ship_cost": 600,
   "port": 8770
 }

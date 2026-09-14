@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import analysis
 import research
+import sedori
 import websearch
 import ytfetch
 
@@ -305,6 +306,40 @@ class Handler(BaseHTTPRequestHandler):
                 results = websearch.search_all(kw, srcs or None)
                 return self._send(200, json.dumps(
                     {"q": kw, "results": results}, ensure_ascii=False))
+            if path == "/api/sedori":
+                # Xからせどりネタを拾って商品ごとにまとめる。fetch=1 でその場で収集、
+                # q= を付ければそのキーワードだけを追加で拾う(どちらもAPIキー不要)
+                hours = int(qs.get("hours", ["0"])[0] or 0) or None
+                kw = qs.get("q", [""])[0].strip()
+                con = research.connect()
+                try:
+                    fetched = None
+                    if kw:
+                        posts, errors = sedori.fetch_posts(
+                            [kw], per_query=CFG.get("sedori_per_query", 30))
+                        fetched = {"fetched": len(posts),
+                                   "new": sedori.store_posts(con, posts),
+                                   "errors": errors}
+                    elif qs.get("fetch", ["0"])[0] == "1":
+                        fetched = sedori.collect(con, CFG, log=lambda m: None)
+                    data = sedori.build(con, CFG, hours)
+                finally:
+                    con.close()
+                data["fetched"] = fetched
+                data["q"] = kw
+                return self._send(200, json.dumps(data, ensure_ascii=False))
+            if path == "/api/sedori/soba":
+                # ヤフオクの落札相場。仕入れ値を渡せば手数料・送料を引いた粗利も返す
+                kw = qs.get("q", [""])[0].strip()
+                if not kw:
+                    return self._send(400, json.dumps({"error": "q required"}))
+                stats = sedori.fetch_sold_stats(kw)
+                buy = qs.get("buy", [""])[0]
+                stats["profit"] = sedori.profit(
+                    stats.get("median"), int(buy) if buy.isdigit() else None,
+                    CFG.get("sedori_fee_rate", sedori.DEFAULT_FEE_RATE),
+                    CFG.get("sedori_ship_cost", sedori.DEFAULT_SHIP_COST))
+                return self._send(200, json.dumps(stats, ensure_ascii=False))
             if path == "/api/search":
                 kw = qs.get("q", [""])[0].strip()
                 period = qs.get("period", ["all"])[0]
