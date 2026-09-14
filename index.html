@@ -485,13 +485,17 @@ async function aiMemo(id, target){
 function vPat(){
   const rows = DATA.patterns || [];
   const max = Math.max(1, ...rows.map(r=>r.median_views));
-  return lead("同ジャンルのタイトルを型で分類し、その型の<b>再生数の中央値</b>を出したもの。「全体比」が 1.0 を超える型ほど当たりやすい型です。平均でなく中央値なので、まぐれ1本に引っ張られません。")
-   + table(["型","本数","中央値","全体比","","代表例"],
+  return lead("同ジャンルのタイトルを型で分類し、その型の<b>再生数の中央値</b>を出したもの。平均でなく中央値なので、まぐれ1本に引っ張られません。<br>"
+      + "「全体比」は他の型と比べた再生数の大小。ただし<b>大きいチャンネルがよく使う型ほど自動的に高く出ます</b>。"
+      + "<b>「ch内比」</b>は各動画をそのチャンネルの中央値と比べた倍率の中央値で、チャンネルの大きさの影響を消したもの。"
+      + "<b>次に付けるタイトルを選ぶときは ch内比</b>を見てください（1.0 = そのチャンネルの平均的な動画と同じ）。")
+   + table(["型","本数","中央値","全体比","ch内比","","代表例"],
       rows.map(r=>[
         `<td><b>${esc(r.name)}</b></td>`,
         `<td class="num">${r.count}</td>`,
         `<td class="num">${v(r.median_views)}</td>`,
         `<td class="num">${r.index.toFixed(2)}</td>`,
+        `<td class="num"><b>${r.median_multiple==null? "-" : r.median_multiple.toFixed(2)+"x"}</b></td>`,
         `<td style="width:120px"><div class="bar"><i style="width:${Math.round(100*r.median_views/max)}%"></i></div></td>`,
         `<td style="color:var(--muted)"><a class="t" href="${r.best_url}" target="_blank">${esc(r.best_title)}</a></td>`,
       ].join("")))

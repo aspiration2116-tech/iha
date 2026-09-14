@@ -218,12 +218,16 @@ def title_patterns(videos, min_n=3):
             continue
         vs = [v["views"] for v in hit if v["views"] is not None]
         vph = [v["vph"] for v in hit if v["vph"]]
+        # 再生数そのままだと「大きいチャンネルがよく使う型」が上に来るだけになる。
+        # そのチャンネルの中で平均より伸びたかどうか(倍率の中央値)も併せて出す。
+        mult = [v["multiple"] for v in hit if v.get("multiple")]
         best = max(hit, key=lambda v: v.get("score") or 0)
         res.append({
             "name": name,
             "count": len(hit),
             "median_views": int(median(vs)),
             "median_vph": round(median(vph), 1),
+            "median_multiple": round(median(mult), 2) if mult else None,
             "best_title": best["title"],
             "best_url": best["url"],
             "best_views": best["views"],
