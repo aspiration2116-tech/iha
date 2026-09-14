@@ -170,6 +170,43 @@ def main():
             " / ".join(v["fresh_words"])))
         L.append("   - %s" % v["url"])
 
+    # ---- 7. 投稿頻度と登録者あたりの再生
+    # 「毎日出すべきか」「登録者が増えれば再生も増えるか」を毎回その場のデータで確かめる
+    L.append("\n## 7. 投稿頻度と登録者は、成績とどう関係しているか\n")
+    per_ch = defaultdict(list)
+    for v in videos:
+        if v["published_at"]:
+            per_ch[v["channel_id"]].append(v)
+    stat = []
+    for cid, vs in per_ch.items():
+        if len(vs) < 8:
+            continue
+        ds = sorted(x["published_at"][:10] for x in vs if x["published_at"])
+        span = max(1, (datetime.fromisoformat(ds[-1]) - datetime.fromisoformat(ds[0])).days)
+        stat.append({
+            "per_week": len(vs) * 7.0 / span,
+            "med": median([x["views"] for x in vs if x["views"] is not None]),
+            "subs": next((x["channel_subs"] for x in vs if x["channel_subs"]), 0) or 0,
+            "title": vs[0]["channel_title"], "is_self": vs[0]["is_self"],
+        })
+    band = [("〜2本/週", 0, 2), ("2-4本/週", 2, 4), ("4-7本/週", 4, 7), ("7本〜/週", 7, 99)]
+    L.append("| 投稿頻度 | ch数 | その帯の中央値 |")
+    L.append("|---|---:|---:|")
+    for lab, lo, hi in band:
+        g = [x["med"] for x in stat if lo <= x["per_week"] < hi]
+        if g:
+            L.append("| %s | %d | %s |" % (lab, len(g), fmt_views(median(g))))
+    L.append("\n頻度の帯で中央値が単調に増減していなければ、**投稿本数を変えても成績は動かない**。"
+             "その場合に効くのはテーマと型（§3・§4）。\n")
+    L.append("| 登録者に対する再生 | 登録者 | 中央値 | チャンネル |")
+    L.append("|---:|---:|---:|---|")
+    for x in sorted([x for x in stat if x["subs"] >= 1000],
+                    key=lambda x: -(x["med"] / x["subs"])):
+        L.append("| %.1f%% | %s | %s | %s%s |" % (
+            100.0 * x["med"] / x["subs"], fmt_views(x["subs"]), fmt_views(x["med"]),
+            x["title"][:24], " ←自分" if x["is_self"] else ""))
+    L.append("\nこの比率が数%から数百%までばらつく限り、**登録者数はチャンネルの状態を表さない**ので追わない。")
+
     L.append("\n---")
     L.append("検索キーワード(config.json): %s" % " / ".join(cfg.get("keywords", [])))
     with open(OUT, "w", encoding="utf-8") as f:
