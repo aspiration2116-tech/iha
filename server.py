@@ -28,11 +28,33 @@ _run_state = {"running": False, "message": "", "last": None}
 
 THUMB_DIR = os.path.join(BASE, "thumbs")
 
+# 生成物が他者の著作物の流用にならないための共通ルール。
+# アフィリエイト審査(DMM等)やSNSの規約では「他者の著作物を無断で使う/その行為を
+# 推奨する」ことが禁止されているので、AIに渡す資料には必ずこのルールを添える。
+COMPLIANCE_RULES = CFG.get("compliance_rules",
+    "【厳守ルール(著作権・規約)】\n"
+    "・参考動画の台本は「何が受けているか」を知るための分析素材です。"
+    "言い回し・構成の順番・エピソード・たとえ話をそのまま流用しないでください。\n"
+    "・扱うテーマだけを借りて、切り口・構成・表現はゼロから書き起こしてください。"
+    "参考動画に出てこない独自の具体例を必ず3つ以上入れてください。\n"
+    "・事実・数値・手順は「裏取りが必要な箇所」として印を付けてください。"
+    "参考動画の内容が正しい前提で書かないでください。\n"
+    "・サムネ・画像は自作前提です。参考画像のトレース・加工・転載、"
+    "芸能人や他者の写真、企業ロゴ、他サイトのスクリーンショットは使わないでください。\n"
+    "・参考動画から引用する場合は、引用箇所を明示し、出典(チャンネル名・URL)を添えて、"
+    "あくまで自分の主張が主・引用が従になる分量にしてください。\n\n")
+
+# 台本(字幕)など、他者の著作物そのものを手元にコピーするときに必ず添える注意書き。
+REFERENCE_NOTICE = (
+    "※以下は他者の動画の字幕・コメントを、企画の参考・分析目的で取得したものです。"
+    "著作権は各動画の権利者にあります。表現をそのまま転載・再アップロードしないでください。\n\n")
+
 AI_PROMPT_HEADER = CFG.get("ai_prompt_header",
     "あなたはYouTubeの「ライフハック雑学」チャンネルの放送作家です。"
     "以下のリサーチ資料(伸びている競合動画の台本・コメント欄の反応・類似動画)を分析して、"
-    "同じテーマでより面白い10〜11分の動画台本を作成してください。"
-    "コメント欄で視聴者が反応しているポイントは必ず盛り込んでください。\n\n")
+    "同じテーマで「構成も表現もまったく新しい」10〜11分の動画台本を作成してください。"
+    "コメント欄で視聴者が反応しているポイントは必ず盛り込んでください。\n\n"
+    ) + COMPLIANCE_RULES
 
 
 def get_transcript_cached(con, vid):
@@ -76,8 +98,10 @@ PREFILL_PROMPT = CFG.get("ai_prefill_prompt",
     "あなたはYouTube「ライフハック雑学」チャンネルの放送作家です。"
     "以下のリサーチ資料(参考動画の台本とコメント欄の反応)を読み、"
     "まず参考動画の【いいところ】と【改善点】を3つずつ挙げてください。"
-    "そのあと、同じテーマでより面白い10〜11分の動画台本(タイトル案3つ+サムネ文言案+本文)を書いてください。"
-    "コメント欄で視聴者が反応しているポイントは必ず台本に反映してください。\n\n")
+    "そのあと、同じテーマで「構成も表現も新しい」10〜11分の動画台本"
+    "(タイトル案3つ+サムネ文言案+本文)を書いてください。"
+    "コメント欄で視聴者が反応しているポイントは必ず台本に反映してください。\n\n"
+    ) + COMPLIANCE_RULES
 
 
 def build_prefill(con, vid):
@@ -105,7 +129,9 @@ def build_prefill(con, vid):
     L.append("タイトル: %s" % v.get("title", ""))
     L.append("チャンネル: %s / 再生: %s回 / 投稿: %s日前" % (
         v.get("channel_title", ""), v.get("views", "-"), v.get("age_days", "-")))
-    L.append("サムネ: https://i.ytimg.com/vi/%s/maxresdefault.jpg" % vid)
+    L.append("出典: %s" % (v.get("url") or "https://www.youtube.com/watch?v=%s" % vid))
+    # 参考動画のサムネ画像URLはあえて渡さない(模倣・転載の入口になるため)。
+    # サムネは「文言案」だけをAIに出させて、画像は自作する。
     stats = []
     if v.get("recent_vph") or v.get("vph"):
         stats.append("時速%s回" % (v.get("recent_vph") or v.get("vph")))
@@ -150,7 +176,7 @@ def build_pack(con, vid):
     if detail is None:
         return None
     v = detail["video"]
-    L = []
+    L = [REFERENCE_NOTICE.rstrip("\n"), ""]
     L.append("■ 対象動画")
     L.append("タイトル: %s" % v.get("title", ""))
     L.append("チャンネル: %s / 再生: %s回 / 投稿: %s日前 / チャンネル平均比: %sx" % (
@@ -373,6 +399,7 @@ class Handler(BaseHTTPRequestHandler):
                         return self._send(200, json.dumps({
                             "video_id": vid, "lang": row["lang"], "kind": row["kind"],
                             "text": row["text"], "description": row["description"],
+                            "notice": REFERENCE_NOTICE.strip(),
                             "cached": True}, ensure_ascii=False))
                     tr = ytfetch.fetch_transcript(vid, interval=1.0)
                     if tr is None:
@@ -388,6 +415,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(200, json.dumps({
                         "video_id": vid, "lang": tr["lang"], "kind": tr["kind"],
                         "text": tr["text"], "description": tr["description"],
+                        "notice": REFERENCE_NOTICE.strip(),
                         "cached": False}, ensure_ascii=False))
                 finally:
                     con.close()
@@ -395,10 +423,10 @@ class Handler(BaseHTTPRequestHandler):
                 vid = qs.get("video_id", [""])[0]
                 if not vid or not vid.replace("-", "").replace("_", "").isalnum():
                     return self._send(400, json.dumps({"error": "bad video_id"}))
-                # 一覧用は小さい mq、コピー用は maxres を優先する
+                # 画面表示専用。他者のサムネを手元に持ち出す用途にならないよう、
+                # 素材として使える高解像度(maxres/sd)は配らない。
                 small = qs.get("size", [""])[0] == "mq"
-                chain = (("mqdefault", "hqdefault") if small
-                         else ("maxresdefault", "sddefault", "hqdefault"))
+                chain = ("mqdefault", "hqdefault") if small else ("hqdefault", "mqdefault")
                 data = get_thumb(vid, chain)
                 if data is None:
                     return self._send(404, json.dumps({"error": "thumbnail not found"}))

@@ -122,6 +122,7 @@ const TABS = [
   ["topic", "キーワード"],
   ["ch",    "チャンネル"],
   ["self",  "自分の成績"],
+  ["rule",  "審査・著作権"],
 ];
 let DATA = null, MEMOS = null, newCount = 0;
 let tab = localStorage.getItem("ytr_tab") || "opp";
@@ -152,7 +153,7 @@ function render(){
   const p = document.getElementById("panel");
   if(!DATA){ p.innerHTML='<div class="empty">読み込み中…</div>'; return; }
   p.innerHTML = ({opp:vOpp, hot:vHot, srch:vSrch, web:vWeb, new:vNew, memo:vMemo,
-                  pat:vPat, topic:vTopic, ch:vCh, self:vSelf})[tab]();
+                  pat:vPat, topic:vTopic, ch:vCh, self:vSelf, rule:vRule})[tab]();
   if(tab==="memo") loadMemos();
   if(tab==="srch") renderSearchResults();
   if(tab==="web") renderWebResults();
@@ -160,11 +161,11 @@ function render(){
 
 const VMAP = {};
 function actions(r){
-  VMAP[r.video_id] = {title: r.title, url: r.url};
+  VMAP[r.video_id] = {title: r.title, url: r.url, channel: r.channel_title};
   return `<div class="act">
     <button class="main" onclick="openDetail('${r.video_id}')">分析</button>
     <button onclick="copyTitle('${r.video_id}')">タイトル</button>
-    <button onclick="copyThumb('${r.video_id}')">サムネ</button>
+    <button onclick="copyRef('${r.video_id}')" title="出典付きの参考リンクをコピー">参考リンク</button>
     <button onclick="copyTranscript('${r.video_id}')">台本</button>
     <button onclick="copyPack('${r.video_id}')">パック</button>
     <button onclick="openAI('${r.video_id}','claude')">Claude</button>
@@ -296,7 +297,9 @@ const WEB_PRESETS = ["ライフハック", "生活の知恵 裏技", "掃除 裏
                      "暑さ対策", "虫除け 対策", "100均 便利"];
 
 function vWeb(){
-  return lead("X・ニュース・はてブ・ブログ・TikTok・Instagram・Threads を横断検索して、YouTube以外で話題のライフハックネタを拾います。")
+  return lead("X・ニュース・はてブ・ブログ・TikTok・Instagram・Threads を横断検索して、YouTube以外で話題のライフハックネタを拾います。"
+     + '<br><b style="color:var(--accent)">ネタ（何が受けているか）を拾う場所です。</b>'
+     + "表示されるサムネは画面で見るための参考表示で、保存・転載・再投稿はNG。使うのはテーマと出典リンクだけにしてください。")
    + `<div class="act" style="margin-bottom:8px;gap:8px">
         <input id="webQ" value="${esc(WEB.q)}" placeholder="例: 生活の知恵 裏技"
           style="flex:1;min-width:220px;font:14px/1.5 inherit;border:1px solid var(--line);border-radius:8px;padding:8px 12px"
@@ -386,7 +389,9 @@ async function copyWebResults(){
 
 async function webAI(target){
   if(!WEB.results){ toast("先に検索してください"); return; }
-  const prompt = `あなたはYouTube「ライフハック雑学」チャンネルの企画担当です。以下のSNS・ニュース・記事の横断検索結果を分析して、いま需要がありそうな動画ネタを10個、YouTube向けのタイトル案つきで提案してください。SNSで反応が大きい話題を優先してください。\n\n` + webResultsText();
+  const prompt = `あなたはYouTube「ライフハック雑学」チャンネルの企画担当です。以下のSNS・ニュース・記事の横断検索結果を分析して、いま需要がありそうな動画ネタを10個、YouTube向けのタイトル案つきで提案してください。SNSで反応が大きい話題を優先してください。\n`
+    + `ただし、元の投稿の文章・画像・動画をそのまま使うことは禁止です。拾うのは「話題（テーマ）」だけにして、タイトルも説明も新しく書き起こしてください。裏取りが必要な数字や効果には印を付けてください。\n\n`
+    + webResultsText();
   await openAIWithText(prompt, target);
 }
 
@@ -554,6 +559,54 @@ function vSelf(){
   return h;
 }
 
+/* ---------------- 審査・著作権タブ ---------------- */
+// アフィリエイト審査(DMM等)の不承認理由「著作物を無断でアップロードしている、
+// またはその行為を推奨している」を潰すためのチェックリスト。投稿前に必ず通す。
+const RULE_CHECKS = [
+  ["own_media",  "画像・動画・音源は全部<b>自分で撮影/作成したもの</b>か、商用利用OKの素材（自分で規約を確認したもの）だけ"],
+  ["no_repost",  "他人の投稿・動画・スクショ・切り抜きを載せていない（リポスト/リミックスも含む）"],
+  ["no_person",  "芸能人・インフルエンサー・第三者の顔写真を使っていない（肖像権）"],
+  ["no_logo",    "企業ロゴ・アプリのスクショ・キャラクター・ジャケット画像を使っていない（商標/著作権）"],
+  ["asp_asset",  "広告主の素材は<b>公式に配布されている範囲</b>（アフィリエイト管理画面の素材・API）だけを、規約どおりのサイズ/形で使っている"],
+  ["own_text",   "文章を他サイト・他動画からコピペしていない。引用するときは出典を書き、自分の文章が主になっている"],
+  ["source",     "数字・効果・手順の出典が言えるか（「〜と言われています」で誤情報を広げていないか）"],
+  ["no_encourage","「保存して真似してOK」「この画像自由に使って」など、無断転載を勧める書き方をしていない"],
+  ["profile",    "プロフィール・固定投稿に「何のアカウントか」「広告/PRを含むこと」が書いてある"],
+  ["pr_label",   "アフィリエイトリンクを貼る投稿に <b>#PR / #広告</b> を明記している（ステマ規制）"],
+];
+
+function vRule(){
+  const saved = JSON.parse(localStorage.getItem("ytr_rule_checks") || "{}");
+  const done = RULE_CHECKS.filter(([k])=>saved[k]).length;
+  return lead("アフィリエイト審査で落ちる原因のほぼ全部が<b>他人の著作物を使っている / 使うのを勧めている</b>ことです。投稿・再申請の前にここを全部チェックしてください。詳しい手順は同じフォルダの <b>審査対策と著作権ルール.md</b>。")
+   + `<div class="grid" style="margin-bottom:16px">
+        ${stat("チェック済み", done + " / " + RULE_CHECKS.length)}
+        ${stat("状態", done===RULE_CHECKS.length ? "申請してOK" : "未クリア")}
+      </div>`
+   + RULE_CHECKS.map(([k,label])=>`
+      <label style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);
+                    font-size:13.5px;line-height:1.7;cursor:pointer">
+        <input type="checkbox" ${saved[k]?"checked":""} onchange="toggleRule('${k}',this.checked)"
+               style="margin-top:4px;flex:none">
+        <span>${label}</span>
+      </label>`).join("")
+   + `<h3 style="font-size:14px;margin:22px 0 8px">このツールでやっていいこと / ダメなこと</h3>
+      <div class="lead">
+        <b>OK</b>：競合の伸び方・テーマ・タイトルの型・コメントの反応を<b>分析する</b>。
+        「何が求められているか」を知ってから、自分の言葉・自分の素材で作る。<br>
+        <b>NG</b>：サムネ画像の保存・加工・流用、字幕（台本）の文章をそのまま使う、
+        TikTok/Instagramの動画をダウンロードして再投稿する。
+        このツールが表示する他社の画像は<b>画面で見るためだけ</b>のものです。
+      </div>`;
+}
+
+function toggleRule(k, on){
+  const saved = JSON.parse(localStorage.getItem("ytr_rule_checks") || "{}");
+  saved[k] = on;
+  localStorage.setItem("ytr_rule_checks", JSON.stringify(saved));
+  render();
+}
+
 const lead = t => `<p class="lead">${t}</p>`;
 const stat = (k,val) => `<div class="stat"><div class="k">${k}</div><div class="v">${val}</div></div>`;
 function table(head, rows){
@@ -611,23 +664,21 @@ async function copyTitle(vid){
   else showCopyFallback(t, "タイトル");
 }
 
-async function copyThumb(vid){
-  toast("サムネ画像を取得中…");
-  try{
-    const res = await fetch("/api/thumb?video_id="+vid);
-    if(!res.ok) throw 0;
-    const blob = await res.blob();
-    const bmp = await createImageBitmap(blob);
-    const cv = document.createElement("canvas");
-    cv.width = bmp.width; cv.height = bmp.height;
-    cv.getContext("2d").drawImage(bmp, 0, 0);
-    const png = await new Promise(r => cv.toBlob(r, "image/png"));
-    await navigator.clipboard.write([new ClipboardItem({"image/png": png})]);
-    toast("サムネ画像をコピーしました（そのまま貼り付けできます）");
-  }catch(e){
-    await writeClip(`https://i.ytimg.com/vi/${vid}/maxresdefault.jpg`);
-    toast("画像コピーに失敗したのでURLをコピーしました");
-  }
+// 他者のサムネ画像そのものをコピーする機能は廃止した。
+// 画像の持ち出しは「著作物の無断使用」とみなされ、アフィリエイト審査やSNSの規約で
+// 一発アウトになるため、代わりに出典付きの参考リンクだけを渡す。
+async function copyRef(vid){
+  const m = VMAP[vid] || {};
+  const url = m.url || `https://www.youtube.com/watch?v=${vid}`;
+  const text = [
+    "【参考】" + (m.title || ""),
+    m.channel ? "チャンネル: " + m.channel : "",
+    "出典: " + url,
+    "※参考用。画像・映像・字幕をそのまま使わず、自分の言葉と自作素材で作ること。",
+  ].filter(Boolean).join("\n");
+  const ok = await writeClip(text);
+  if(ok) toast("出典付きの参考リンクをコピーしました");
+  else showCopyFallback(text, "参考リンク");
 }
 
 async function fetchTranscript(vid){
@@ -640,9 +691,11 @@ async function copyTranscript(vid){
   try{
     const d = await fetchTranscript(vid);
     if(!d.text){ toast(d.error || "この動画には字幕がありません"); return; }
-    const ok = await writeClip(d.text);
-    if(ok) toast(`台本をコピーしました（${d.text.length.toLocaleString()}字 / ${d.kind==="asr"?"自動生成字幕":"手動字幕"}）`);
-    else showCopyFallback(d.text, "台本");
+    // 他者の著作物なので、コピーしたテキストの先頭に必ず注意書きを付ける
+    const text = (d.notice ? d.notice + "\n\n" : "") + d.text;
+    const ok = await writeClip(text);
+    if(ok) toast(`台本をコピーしました（${d.text.length.toLocaleString()}字 / ${d.kind==="asr"?"自動生成字幕":"手動字幕"}）参考用です。表現の流用はNG`);
+    else showCopyFallback(text, "台本（参考用）");
   }catch(e){ toast("取得に失敗しました: "+e); }
 }
 
@@ -737,13 +790,16 @@ async function openDetail(vid){
       ${r.multiple?` ・ チャンネル平均比 ${r.multiple}x`:""}
       ${r.channel_median?` ・ このchの中央値 ${v(r.channel_median)}回`:""}</div>
     <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
-      <img src="${r.thumb}" style="width:240px;border-radius:8px">
+      <div style="width:240px;flex:none">
+        <img src="${r.thumb}" style="width:240px;border-radius:8px">
+        <div class="sub" style="font-size:11px;margin-top:4px">画面で見るための参考表示です。保存・加工・転載はしないでください。</div>
+      </div>
       <div style="flex:1;min-width:220px">
         <h3 style="margin-top:0">当てはまるタイトルの型</h3>
         <div>${(d.patterns||[]).map(p=>`<span class="tag">${esc(p)}</span>`).join("") || '<span class="sub">該当なし</span>'}</div>
         <div class="act" style="margin-top:12px">
           <button onclick="copyTitle('${vid}')">タイトル</button>
-          <button onclick="copyThumb('${vid}')">サムネ</button>
+          <button onclick="copyRef('${vid}')" title="出典付きの参考リンクをコピー">参考リンク</button>
           <button onclick="copyPack('${vid}')">パック</button>
           <button onclick="saveAsMemo('${vid}')">メモに保存</button>
           <button class="main" onclick="openAI('${vid}','claude')">Claudeで台本化</button>
