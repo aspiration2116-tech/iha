@@ -115,12 +115,27 @@ def wrap_sentence(s):
     return out, True
 
 def cards(text):
-    """1発話 → [(カード行リスト, 要短縮)]"""
-    out = []
+    """1発話 → [(カード行リスト, 要短縮)]
+
+    ・1つの文は、可能な限り1カードに収める(文をカードで割らない)
+    ・2行に満たないカードには、次の短い文を同じカードに載せる
+      (「ふふ。」「そう」のような短い応酬がバラけるのを防ぐ)
+    """
+    out, cur, cur_over = [], [], False
     for s in split_sentences(text):
         ls, over = wrap_sentence(s)
-        for i in range(0, len(ls), MAX_LINES):
-            out.append((ls[i:i+MAX_LINES], over))
+        if len(ls) > MAX_LINES:
+            # 3行以上必要な文は、溜めを吐き出してから単独でカード化
+            if cur: out.append((cur, cur_over)); cur, cur_over = [], False
+            for i in range(0, len(ls), MAX_LINES):
+                out.append((ls[i:i+MAX_LINES], True))
+            continue
+        if len(cur) + len(ls) <= MAX_LINES:
+            cur += ls; cur_over = cur_over or over
+        else:
+            if cur: out.append((cur, cur_over))
+            cur, cur_over = ls, over
+    if cur: out.append((cur, cur_over))
     return out
 
 SPEAKER = re.compile(r'^(\*\*[^*]{1,8}\*\*)(.*)$')
