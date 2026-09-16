@@ -31,6 +31,7 @@ def njd(text):
     subprocess.run(["open_jtalk","-x",DIC,"-m",VOICE,"-ot",tr,"-ow","/dev/null",src],
                    capture_output=True)
     out = open(tr, encoding="utf-8").read(); os.unlink(src); os.unlink(tr)
+    if "[Text analysis result]" not in out: return []
     body = out.split("[Text analysis result]")[1].split("[Output label]")[0]
     return [{"s":c[0],"pos":c[1],"chain":c[12]}
             for c in (l.split(",") for l in body.strip().split("\n")) if len(c) >= 13]

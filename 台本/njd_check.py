@@ -29,6 +29,7 @@ def njd(text):
                    capture_output=True)
     out = open(tr, encoding="utf-8").read()
     os.unlink(src); os.unlink(tr)
+    if "[Text analysis result]" not in out: return []
     body = out.split("[Text analysis result]")[1].split("[Output label]")[0]
     rows = []
     for line in body.strip().split("\n"):
