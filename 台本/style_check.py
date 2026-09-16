@@ -17,7 +17,7 @@
 """
 import re, sys, collections
 
-SPEAKER = re.compile(r'^\*\*([^*]{1,8})\*\*$')
+SPEAKER = re.compile(r'^\*\*([^*]{1,10})\*\*$')
 
 def load(path):
     src = open(path, encoding="utf-8").read()

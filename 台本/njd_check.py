@@ -61,7 +61,7 @@ def phrases(rows):
     if cur: out.append(cur)
     return out
 
-SPEAKER = re.compile(r'\*\*[^*]{1,8}\*\*')
+SPEAKER = re.compile(r'\*\*[^*]{1,10}\*\*')
 KANJI   = re.compile(r'[一-鿿]')
 
 def load(path):
