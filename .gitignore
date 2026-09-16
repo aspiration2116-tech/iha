@@ -1,2 +1,7 @@
 動画/build/
+動画/build_final/
 動画/out_audio/
+動画/__pycache__/
+台本/__pycache__/
+動画/images/*.png
+動画/images/*.jpg
