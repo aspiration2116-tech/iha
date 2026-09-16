@@ -1,0 +1,6 @@
+# Python のバイトコードキャッシュ
+__pycache__/
+*.pyc
+
+# server.py がサムネイルを置くローカルキャッシュ
+thumbs/
