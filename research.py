@@ -13,6 +13,10 @@
   python3 research.py --quick      # 検索だけ(速い)
   python3 research.py --deep       # 競合チャンネルを全部ページ取得
   python3 research.py --add @xxxxx # 競合を手動追加
+
+  --profile 沖縄  (または環境変数 YTR_PROFILE=沖縄) を付けると、
+  profiles/沖縄/ の設定・DB・レポートを使う。ジャンルの違うチャンネルを
+  別々に追いかけるための仕組みで、無指定のときは従来どおりフォルダ直下。
 """
 
 import json
@@ -25,9 +29,47 @@ from datetime import datetime, timezone
 import ytfetch
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "research.db")
-CONFIG_PATH = os.path.join(BASE, "config.json")
-LOG_PATH = os.path.join(BASE, "research.log")
+
+
+def _resolve_profile():
+    """--profile 名前 / --profile=名前 / 環境変数 YTR_PROFILE からプロファイル名を得る。
+
+    server.py から import されたときも sys.argv を見るので、
+    `python3 server.py --profile 沖縄` でもダッシュボードが同じ設定を使う。"""
+    argv = sys.argv[1:]
+    for i, a in enumerate(argv):
+        if a == "--profile" and i + 1 < len(argv):
+            return argv[i + 1].strip()
+        if a.startswith("--profile="):
+            return a.split("=", 1)[1].strip()
+    return os.environ.get("YTR_PROFILE", "").strip()
+
+
+def _strip_profile_args(argv):
+    """--profile 系の引数を取り除く(--add のハンドル解釈に混ざらないように)。"""
+    out, skip = [], False
+    for a in argv:
+        if skip:
+            skip = False
+            continue
+        if a == "--profile":
+            skip = True
+            continue
+        if a.startswith("--profile="):
+            continue
+        out.append(a)
+    return out
+
+
+PROFILE = _resolve_profile()
+# 無指定のときは従来どおりフォルダ直下(既存の設定・DBをそのまま使う)。
+# プロファイル指定時だけ profiles/<名前>/ に分ける。
+DATA_DIR = os.path.join(BASE, "profiles", PROFILE) if PROFILE else BASE
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DB_PATH = os.path.join(DATA_DIR, "research.db")
+CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
+LOG_PATH = os.path.join(DATA_DIR, "research.log")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS channels (
@@ -423,6 +465,7 @@ def run(quick=False, deep=False):
     cfg = load_config()
     con = connect()
     started = now_iso()
+    log("プロファイル: %s (%s)" % (PROFILE or "既定", DATA_DIR))
     try:
         register_channels(con, cfg)
         con.commit()
@@ -437,7 +480,7 @@ def run(quick=False, deep=False):
         con.commit()
         notify_new_favorite_videos(con, cfg, started)
         import analysis
-        report = analysis.write_report(con, BASE)
+        report = analysis.write_report(con, DATA_DIR)
         con.execute("INSERT OR REPLACE INTO runs(ts,ok,detail) VALUES(?,1,?)",
                     (started, "ok"))
         con.commit()
@@ -452,7 +495,7 @@ def run(quick=False, deep=False):
 
 
 def main():
-    args = sys.argv[1:]
+    args = _strip_profile_args(sys.argv[1:])
     if "--add" in args:
         i = args.index("--add")
         handles = [a for a in args[i + 1:] if not a.startswith("--")]

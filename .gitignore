@@ -4,3 +4,12 @@ __pycache__/
 
 # server.py がサムネイルを置くローカルキャッシュ
 thumbs/
+
+# プロファイルは config.json だけ共有し、収集データは各自のMacのローカル扱い
+profiles/*/research.db
+profiles/*/research.log
+profiles/*/research.err.log
+profiles/*/server.log
+profiles/*/server.err.log
+profiles/*/latest.json
+profiles/*/ネタ候補.md

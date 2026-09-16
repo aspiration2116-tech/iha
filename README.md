@@ -71,6 +71,39 @@
 - `discover_min_views`: 競合として登録する平均再生数の下限 (2000)
 - `genre_channel_pattern`: この正規表現に合うチャンネル名は同ジャンルとみなし登録されやすくなる
 
+## プロファイル(ジャンルの違うチャンネルを別々に追う)
+
+`--profile <名前>`(または環境変数 `YTR_PROFILE`)を付けると、設定・DB・レポートを
+`profiles/<名前>/` に分けて持てる。無指定のときは従来どおりフォルダ直下なので、
+ライフハック雑学の既存データはそのまま動く。
+
+同梱のプロファイル:
+
+| 名前 | 対象 | ポート |
+|---|---|---|
+| (無指定) | @tomorrow_life_hack / ライフハック雑学 | 8770 |
+| `okinawa` | 沖縄へ行こう / 沖縄観光。競合に @okipiyo を登録済み | 8771 |
+
+```bash
+python3 research.py --profile okinawa   # 沖縄ジャンルの収集
+python3 server.py   --profile okinawa   # http://localhost:8771
+```
+
+`沖縄リサーチ.command` をダブルクリックすると、ダッシュボードの起動 → ブラウザで開く →
+収集、までまとめてやる。ポートが別なので8770のほうと同時に動かして問題ない。
+
+沖縄プロファイルは旅行ジャンル向けに以下を変えてある:
+
+- `keywords` … 「沖縄旅行 気をつけること」「沖縄 観光 モデルコース」など検索需要のある語
+- `exclude_shorts: false` … ショートも収集対象(ショート戦略を取るため、伸びているショートを見る)
+- `genre_channel_pattern` … 沖縄・離島・観光・旅行・移住
+- `ai_prompt_header` / `ai_prefill_prompt` … 「新規撮影はしない前提で、手持ちの実写素材に
+  ナレーションとテロップを乗せる構成」で台本を書かせる文言に変更。章ごとに当てる映像素材も出させる
+
+`profiles/<名前>/` の中で git 管理するのは `config.json` だけ(DBやレポートは各Macのローカル扱い)。
+
+新しいプロファイルを足すときは `profiles/<名前>/config.json` を作って `--profile <名前>` で実行する。
+
 ## launchd
 
 - `com.user.youtube-research` … 収集を6時間ごと

@@ -457,7 +457,7 @@ class Handler(BaseHTTPRequestHandler):
                 con.close()
                 return self._send(200, json.dumps({"ok": True}))
             if path == "/api/report":
-                p = os.path.join(BASE, "ネタ候補.md")
+                p = os.path.join(research.DATA_DIR, "ネタ候補.md")
                 if os.path.exists(p):
                     with open(p, encoding="utf-8") as f:
                         return self._send(200, f.read(), "text/plain; charset=utf-8")
@@ -500,7 +500,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print("リサーチダッシュボード: http://localhost:%d" % PORT, flush=True)
+    print("リサーチダッシュボード: http://localhost:%d (プロファイル: %s)"
+          % (PORT, research.PROFILE or "既定"), flush=True)
     srv.serve_forever()
 
 
