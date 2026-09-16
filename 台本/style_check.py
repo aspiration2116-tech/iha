@@ -46,17 +46,24 @@ def ending(s):
         if s.endswith(pat): return pat
     return s[-3:] if len(s) >= 3 else s
 
+def narrators(items):
+    """地の文の話者(主人公とナレ)を自動判定する。台本ごとに主人公名が変わるため"""
+    c = collections.Counter(sp for sp, t, _ in items if not t.lstrip().startswith("「"))
+    main_sp = c.most_common(1)[0][0] if c else None
+    return {main_sp, "ナレ"}
+
 def main(path):
     items = load(path)
-    narr = [t for sp, t, _ in items if sp in ("結衣", "ナレ")]
-    line = [t for sp, t, _ in items if sp not in ("結衣", "ナレ")]
+    NARR = narrators(items)
+    narr = [t for sp, t, _ in items if sp in NARR]
+    line = [t for sp, t, _ in items if sp not in NARR]
     quoted = [t for sp, t, _ in items if t.lstrip().startswith("「")]
     total = len(items)
     print(f"検査: {path}\n発話 {total} / 地の文+ナレ {len(narr)} / 他話者 {len(line)}\n")
 
     # ① 文末の連続
     print("=== ① 文末表現の連続(3回以上は要修正) ===")
-    seq, runs, cur = [ending(t) for sp, t, _ in items if sp in ("結衣","ナレ") and not t.lstrip().startswith("「")], [], []
+    seq, runs, cur = [ending(t) for sp, t, _ in items if sp in NARR and not t.lstrip().startswith("「")], [], []
     for e in seq:
         if cur and cur[-1] == e: cur.append(e)
         else:
@@ -80,7 +87,7 @@ def main(path):
     print("\n=== ③ 地の文が続く最長区間(8以上は要修正) ===")
     runs, cur = [], 0
     for sp, t, _ in items:
-        if sp in ("結衣", "ナレ") and not t.lstrip().startswith("「"): cur += 1
+        if sp in NARR and not t.lstrip().startswith("「"): cur += 1
         else:
             if cur >= 8: runs.append(cur)
             cur = 0
