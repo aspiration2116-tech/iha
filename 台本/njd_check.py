@@ -110,6 +110,8 @@ def main(path):
     lines = load(path)
     unknown, mism, splits = [], [], collections.Counter()
     longph = []
+    # 同じ表記が、台本の中で別の読みになっていないか(白石 → シライシ / ハクセキ)
+    seen_read = collections.defaultdict(dict)
     for ln, s in lines:
         rows = njd(s)
         for r in rows:
@@ -120,6 +122,8 @@ def main(path):
             # 単独の語として立っているときだけ期待読みと比べる。
             if sf in EXPECT and r["pos1"] != "接尾" and norm(pr) != norm(EXPECT[sf]):
                 mism.append((ln, sf, pr, EXPECT[sf], s[:46]))
+            if KANJI.search(sf) and pr not in ("*", ""):
+                seen_read[sf].setdefault(norm(pr), (ln, pr, s[:46]))
         # 固有名詞のアクセント句分割
         for ph in phrases(rows):
             txt = "".join(x["surface"] for x in ph)
@@ -217,6 +221,19 @@ def main(path):
                 if norm(got) != norm(exp):
                     phr.append((ln, w, got, exp, s2[:40]))
 
+    # ⑨ 同じ表記が台本の中で別々に読まれている
+    #   台本03の 柏木「白石」が ハクセキ、「白石。」なら シライシ だった。
+    #   期待リストに無い固有名詞は①②で拾えないので、台本の中の不一致で見つける。
+    incon = [(sf, d) for sf, d in seen_read.items() if len(d) > 1]
+
+    print("\n=== ⑨ 同じ表記が台本の中で別々に読まれている ===")
+    print("  なし" if not incon else "")
+    for sf, d in incon[:20]:
+        print(f"  「{sf}」")
+        for _, (ln, pr, s2) in sorted(d.items(), key=lambda kv: kv[1][0]):
+            print(f"      L{ln}  → {pr}    {s2}")
+    if len(incon) > 20: print(f"  …ほか {len(incon)-20}語")
+
     print("\n=== ⑦ 助詞が隣の語に飲まれている(は→ハ、へ→ヘ) ===")
     print("  なし" if not eaten else "")
     for ln, txt, pr, s2 in eaten[:20]:
@@ -240,7 +257,7 @@ def main(path):
     print("\n=== ④ 長すぎるアクセント句(13モーラ超・不自然になりやすい) ===")
     print("  なし" if not longph else "")
     for ln, txt, m in longph[:20]: print(f"  L{ln}  {txt} ({m}モーラ)  → 読点で割る")
-    ng = len(unknown) + len(mism) + len(eaten) + len({w for _, w, _, _, _ in phr})
+    ng = len(unknown) + len(mism) + len(eaten) + len(incon) + len({w for _, w, _, _, _ in phr})
     print(f"\n{'❌ 要修正 ' + str(ng) + '件' if ng else '✅ 読み事故なし'}")
     return 1 if ng else 0
 
