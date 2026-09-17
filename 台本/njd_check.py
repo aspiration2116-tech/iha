@@ -239,11 +239,16 @@ def main(path):
             if sf in NUM1 or sf in COMMON1: continue
             if len({v[3] for v in d.values()}) < 2: continue
         incon.append((sf, d))
+    # 固有名詞が二通りに読まれるのは必ず事故(白石 = シライシ / ハクセキ)。
+    # それ以外(一日 = イチニチ / ツイタチ)は、文脈でどちらも正しいことがあるので
+    # 目で確かめる欄に置き、要修正には数えない。
+    incon_ng = [(sf, d) for sf, d in incon
+                if any("固有名詞" in v[3] for v in d.values())]
 
-    print("\n=== ⑨ 同じ表記が台本の中で別々に読まれている ===")
+    print("\n=== ⑨ 同じ表記が台本の中で別々に読まれている(固有名詞は事故、他は要確認) ===")
     print("  なし" if not incon else "")
     for sf, d in incon[:20]:
-        print(f"  「{sf}」")
+        print(f"  「{sf}」" + ("  ❌ 固有名詞" if (sf, d) in incon_ng else "  (要確認)"))
         for _, (ln, pr, s2, ps) in sorted(d.items(), key=lambda kv: kv[1][0]):
             print(f"      L{ln}  → {pr:10s} [{ps}]  {s2}")
     if len(incon) > 20: print(f"  …ほか {len(incon)-20}語")
@@ -271,7 +276,7 @@ def main(path):
     print("\n=== ④ 長すぎるアクセント句(13モーラ超・不自然になりやすい) ===")
     print("  なし" if not longph else "")
     for ln, txt, m in longph[:20]: print(f"  L{ln}  {txt} ({m}モーラ)  → 読点で割る")
-    ng = len(unknown) + len(mism) + len(eaten) + len(incon) + len({w for _, w, _, _, _ in phr})
+    ng = len(unknown) + len(mism) + len(eaten) + len(incon_ng) + len({w for _, w, _, _, _ in phr})
     print(f"\n{'❌ 要修正 ' + str(ng) + '件' if ng else '✅ 読み事故なし'}")
     return 1 if ng else 0
 
