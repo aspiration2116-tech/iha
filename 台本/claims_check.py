@@ -99,8 +99,50 @@ def main(path):
             mark = f"  ← 設計{int(tgt)//60}:{int(tgt)%60:02d}から{diff:+.0f}秒"
             over += 1
         print(f"  {int(d)//60}:{int(d)%60:02d}  {title.strip()[:20]}{mark}")
+    # ③ 数の申告(「ト書き29本」「無音13箇所」「話者11人」)を機械で数え直す。
+    #   ①は「」の引用しか見ないので、数の食い違いは素通りしていた。
+    #   台本08の採点で「機械が見ていない列に食い違いが6件移っただけ」と指摘された。
+    body_lines = body.split("\n")
+    actual = {
+        # 「> ト書き:」で始まる行だけを数える(作画への注意書きの「>」は含めない)
+        "ト書き": sum(1 for l in body_lines if l.lstrip().startswith("> ト書き")),
+        "無音":   len(re.findall(r'【無音[\d.]+秒】', body)),
+        "話者":   len({m.group(1) for m in
+                      (re.match(r'^\*\*([^*【]+)\*\*', l) for l in body_lines) if m}),
+        "発話":   sum(1 for l in body_lines
+                      if l.startswith("**") and not l.startswith("**【")),
+    }
+    UNIT = {"ト書き": "本|枚", "無音": "箇所|か所|カ所", "話者": "人", "発話": "行"}
+    # 章ごとの部分的な申告や、変更前後を並べた行は全体の数ではないので見ない
+    CHAP = ("コールドオープン", "約束", "状況説明", "加害", "一線", "受諾",
+            "準備", "反転", "転落", "締め")
+    num = []
+    for line in head.split("\n"):
+        # 表の行は「指摘の中身」を書く場所で、台本全体の数ではない
+        if line.lstrip().startswith("|"):
+            continue
+        if "→" in line or any(c in line for c in CHAP):
+            continue
+        for key, units in UNIT.items():
+            for m in re.finditer(key + r'[^。|\n]{0,10}?([0-9,]+) *(?:' + units + r')(.?)',
+                                 line):
+                if m.group(2) in ("も", "と"):   # 「1人も増えていない」は数の申告ではない
+                    continue
+                claimed = int(m.group(1).replace(",", ""))
+                if claimed != actual[key]:
+                    num.append((key, claimed, actual[key], m.group(0)[:30]))
+
+    print("\n=== ③ 数の申告(機械で数え直す)")
+    print(f"  ト書き {actual['ト書き']}本 / 無音 {actual['無音']}箇所 / "
+          f"話者 {actual['話者']}人 / 発話 {actual['発話']}行")
+    for key, c, a, txt in num:
+        print(f"  ✗ 申告「{txt}」→ 実際は {a}")
+    if not num:
+        print("  ✅ 数の申告はすべて本文と合う")
+
     print(f"\n{'─'*56}")
-    print(f"申告の食い違い {len(missing)}件 / 配分の逸脱 {over}章。**どちらも0を目指す。**")
-    sys.exit(1 if (missing or over) else 0)
+    print(f"申告の食い違い {len(missing)}件 / 配分の逸脱 {over}章 / "
+          f"数の食い違い {len(num)}件。**すべて0を目指す。**")
+    sys.exit(1 if (missing or over or num) else 0)
 
 main(sys.argv[1])

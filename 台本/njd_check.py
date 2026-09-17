@@ -123,7 +123,8 @@ def main(path):
             if sf in EXPECT and r["pos1"] != "接尾" and norm(pr) != norm(EXPECT[sf]):
                 mism.append((ln, sf, pr, EXPECT[sf], s[:46]))
             if KANJI.search(sf) and pr not in ("*", ""):
-                seen_read[sf].setdefault(norm(pr), (ln, pr, s[:46]))
+                seen_read[sf].setdefault(norm(pr),
+                                         (ln, pr, s[:46], r["pos"] + "/" + r["pos1"]))
         # 固有名詞のアクセント句分割
         for ph in phrases(rows):
             txt = "".join(x["surface"] for x in ph)
@@ -225,14 +226,23 @@ def main(path):
     # ⑨ 同じ表記が台本の中で別々に読まれている
     #   台本03の 柏木「白石」が ハクセキ、「白石。」なら シライシ だった。
     #   期待リストに無い固有名詞は①②で拾えないので、台本の中の不一致で見つける。
-    incon = [(sf, d) for sf, d in seen_read.items() if len(d) > 1]
+    #   数詞は前後で読みが変わって当たり前(三百=サンビャク / 六百=ロッピャク)。
+    #   1文字の語は、品詞まで割れているときだけ出す(分 = プン/フン と ワケ は別の語)。
+    NUM1 = set("一二三四五六七八九十百千万〇零")
+    incon = []
+    for sf, d in seen_read.items():
+        if len(d) < 2: continue
+        if len(sf) == 1:
+            if sf in NUM1: continue
+            if len({v[3] for v in d.values()}) < 2: continue
+        incon.append((sf, d))
 
     print("\n=== ⑨ 同じ表記が台本の中で別々に読まれている ===")
     print("  なし" if not incon else "")
     for sf, d in incon[:20]:
         print(f"  「{sf}」")
-        for _, (ln, pr, s2) in sorted(d.items(), key=lambda kv: kv[1][0]):
-            print(f"      L{ln}  → {pr}    {s2}")
+        for _, (ln, pr, s2, ps) in sorted(d.items(), key=lambda kv: kv[1][0]):
+            print(f"      L{ln}  → {pr:10s} [{ps}]  {s2}")
     if len(incon) > 20: print(f"  …ほか {len(incon)-20}語")
 
     print("\n=== ⑦ 助詞が隣の語に飲まれている(は→ハ、へ→ヘ) ===")
