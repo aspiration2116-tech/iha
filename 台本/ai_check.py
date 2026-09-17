@@ -20,9 +20,13 @@
 """
 import re, sys, collections
 
-EMO = ["悲しい","悲しく","悔しい","悔しく","嬉しい","嬉しく","切ない","苦しい","辛い","つらい",
-       "寂しい","寂しく","腹立たしい","情けない","恥ずかしい","怖い","怖く",
-       "胸が","心が","胸の奥","心の奥","涙が出","涙がこぼれ","込み上げ","こみ上げ"]
+_EMO_STEM = ["悲し","かなし","悔し","くやし","嬉し","うれし","切な","せつな","苦し","くるし",
+             "辛","つら","寂し","さびし","さみし","腹立たし","情けな","なさけな",
+             "恥ずかし","はずかし","怖","こわ","嫌","いや","むなし","虚し","もどかし"]
+_EMO_INFL = ["い","く","かった","かっ","さ","くて"]
+EMO = [st + inf for st in _EMO_STEM for inf in _EMO_INFL] + [
+       "胸が","心が","胸の奥","心の奥","涙が出","涙がこぼれ","込み上げ","こみ上げ",
+       "胸に","心に","胸を","心を","泣きたく","泣きそう"]
 CLICHE = ["時間が止まった","時が止まった","息を呑","息をのん","胸が締めつけ","胸を締めつけ",
           "凍りついた","凍り付いた","目の前が真っ暗","頭が真っ白",
           "血の気が引","背筋が凍","鳥肌が","言葉を失","立ち尽く","呆然と",
@@ -59,8 +63,9 @@ def main(path):
 
     # ① 感情の名指し / ② 既製品の比喩
     for i, t in narr:
-        for w in EMO:
-            if w in t: hits["① 感情の名指し"].append((i, t, w))
+        found = [w for w in EMO if w in t]
+        if found:
+            hits["① 感情の名指し"].append((i, t, max(found, key=len)))
         for w in CLICHE:
             if w in t: hits["② 既製品の比喩"].append((i, t, w))
         m = ADV2.search(t)
@@ -78,13 +83,32 @@ def main(path):
             if common: hits["⑤ 同語の近接反復"].append((i, f"{a} ／ {b}", "・".join(sorted(common))))
             break
 
-    # ⑥ 言い換えの重複(直前の文と語が6割かぶる)
+    # ⑥ 言い換えの重複(前方12発話までを見る。離れた逐語反復も拾う)
+    WINDOW = 12
     for k in range(1, len(narr)):
-        i, b = narr[k]; _, a = narr[k-1]
-        wa, wb = words(a), words(b)
-        if wa and wb:
+        i, b = narr[k]; wb = words(b)
+        if not wb: continue
+        for m in range(max(0, k - WINDOW), k):
+            j, a = narr[m]; wa = words(a)
+            if not wa: continue
             ov = len(wa & wb) / min(len(wa), len(wb))
-            if ov >= 0.6: hits["⑥ 言い換えの重複"].append((i, f"{a} ／ {b}", f"{ov:.0%}かぶり"))
+            th = 0.6 if k - m == 1 else 0.75      # 離れているほど厳しい一致を要求
+            if ov >= th and min(len(wa), len(wb)) >= 2:
+                hits["⑥ 言い換えの重複"].append(
+                    (i, f"{a} ／ {b}", f"{ov:.0%}かぶり({k-m}発話前)"))
+                break
+
+    # ⑥' 逐語反復(語の切り方に依らず、12字以上そのまま繰り返している)
+    import difflib
+    for k in range(1, len(narr)):
+        i, b = narr[k]
+        for m in range(max(0, k - 30), k):
+            j, a2 = narr[m]
+            mt = difflib.SequenceMatcher(None, a2, b).find_longest_match(0, len(a2), 0, len(b))
+            if mt.size >= 12:
+                hits["⑥ 言い換えの重複"].append(
+                    (i, f"{a2} ／ {b}", f"「{b[mt.b:mt.b+mt.size]}」が{k-m}発話前と同じ"))
+                break
 
     # ⑦ のです癖
     NODA = re.compile(r'([るたいない]のです|[るたいない]のでした|(?<![まませ])んです|(?<![まませ])んでした)[。」]?$')
@@ -124,4 +148,5 @@ def main(path):
     bad = sum(len(v) for v in hits.values())
     print(f"\n{'─'*60}\n①〜⑥⑧の指摘 {bad}件。**0件を目指す**。")
 
-main(sys.argv[1])
+if __name__ == "__main__":
+    main(sys.argv[1])
