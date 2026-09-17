@@ -147,8 +147,27 @@ def iter_body(path):
     body, tail = rest.split("# 概要欄", 1)
     return head, body, tail
 
+MARK = "(テロップ改行済み・本番用)"
+
+def mark_head(head):
+    """本番版のヘッダに、原稿と取り違えないための印と収録前の注意を入れる。
+    再生成のたびに手で付け直していたので、ここで必ず付ける。"""
+    lines = head.split("\n")
+    for i, l in enumerate(lines):
+        if l.startswith("# ") and MARK not in l:
+            lines[i] = l.rstrip() + MARK
+            break
+    for i, l in enumerate(lines):
+        if l.startswith("**尺**") and "**収録前に" not in l:
+            lines[i] = re.sub(r'収録前にVOICEVOXで実測(すること)?',
+                              "**収録前にVOICEVOXで実測すること**", l)
+            break
+    return "\n".join(lines)
+
 def main(path, check=False):
     head, body, tail = iter_body(path)
+    if not check:
+        head = mark_head(head)
     out, over_list = [head, "# 台本本文"], []
     for line in body.split("\n"):
         s = line.rstrip(); t = s.strip()

@@ -81,6 +81,7 @@ def load(path):
 
 # 正しい発音が確定している語(ここに足していく)
 EXPECT = {
+    "話": "ハナシ",   # 「こんな話」→ コンナバナシ の連濁を拾う
     "中村":"ナカムラ","結衣":"ユイ","健一":"ケンイチ","神崎":"カンザキ","政子":"マサコ",
     "涼介":"リョウスケ","鷹野":"タカノ","誠一":"セイイチ","黒田":"クロダ",
     "通帳":"ツウチョウ","入口":"イリグチ","司会者":"シカイシャ","女房":"ニョウボウ",
@@ -177,10 +178,62 @@ def main(path):
         seen_r.add(w)
         print(f"  「{w}」→ 単独では {pr}   (L{ln} ほか)")
 
+    # ⑦ 助詞の「は・へ・を」が隣の語に飲まれる事故
+    #   助詞の「は」はワと読む。名詞(漢字・カタカナ)の直後の「は」が
+    #   助詞として立っていなければ、次の語に飲まれている。
+    #   例:「私はね」→ ワタシ・ハネ、「手に職はね」→ テニショク・ハネ
+    NOUN_END = re.compile(r'[\u4e00-\u9fff\u30a0-\u30ff\u3005]')
+    KANA_ONLY = re.compile(r'^[\u3041-\u3093]+$')
+    eaten = []
+    for ln, s2 in lines:
+        if not any(c in s2 for c in "はへを"):
+            continue
+        at = 0
+        for r in njd(s2):
+            sf = r["surface"]
+            i = s2.find(sf, at)
+            if i < 0: continue
+            at = i + len(sf)
+            if r["pos"] == "助詞": continue
+            if not (sf and sf[0] in "はへを" and KANA_ONLY.match(sf)): continue
+            if i > 0 and NOUN_END.match(s2[i-1]):
+                eaten.append((ln, s2[max(0,i-3):i] + sf, r["pron"], s2[:40]))
+
+    # ⑧ 語句単位の期待読み(1語ずつでは正しくても、並ぶと崩れるもの)
+    PHRASE = {
+        "三分の一": "サンブンノイチ", "三分の二": "サンブンノニ",
+        "二分の一": "ニブンノイチ", "四分の一": "ヨンブンノイチ",
+        "四分の三": "ヨンブンノサン", "五分の一": "ゴブンノイチ",
+        "十分の一": "ジュウブンノイチ",
+    }
+    phr = []
+    for ln, s2 in lines:
+        for w, exp in PHRASE.items():
+            if w in s2:
+                got = "".join(x["pron"] for x in njd(w))
+                if norm(got) != norm(exp):
+                    phr.append((ln, w, got, exp, s2[:40]))
+
+    print("\n=== ⑦ 助詞が隣の語に飲まれている(は→ハ、へ→ヘ) ===")
+    print("  なし" if not eaten else "")
+    for ln, txt, pr, s2 in eaten[:20]:
+        print(f"  L{ln}  「{txt}」→ {pr}   ※助詞ならワ/エ")
+        print(f"        {s2}")
+    if len(eaten) > 20: print(f"  …ほか {len(eaten)-20}件")
+
+    print("\n=== ⑧ 語句で崩れる読み ===")
+    print("  なし" if not phr else "")
+    seen_p = set()
+    for ln, w, got, exp, s2 in phr:
+        if w in seen_p: continue
+        seen_p.add(w)
+        print(f"  L{ln}  「{w}」→ {got}   (正しくは {exp})")
+        print(f"        {s2}")
+
     print("\n=== ④ 長すぎるアクセント句(13モーラ超・不自然になりやすい) ===")
     print("  なし" if not longph else "")
     for ln, txt, m in longph[:20]: print(f"  L{ln}  {txt} ({m}モーラ)  → 読点で割る")
-    ng = len(unknown) + len(mism)
+    ng = len(unknown) + len(mism) + len(eaten) + len({w for _, w, _, _, _ in phr})
     print(f"\n{'❌ 要修正 ' + str(ng) + '件' if ng else '✅ 読み事故なし'}")
     return 1 if ng else 0
 
