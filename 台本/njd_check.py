@@ -229,11 +229,14 @@ def main(path):
     #   数詞は前後で読みが変わって当たり前(三百=サンビャク / 六百=ロッピャク)。
     #   1文字の語は、品詞まで割れているときだけ出す(分 = プン/フン と ワケ は別の語)。
     NUM1 = set("一二三四五六七八九十百千万〇零")
+    #   助数詞・形式名詞は、数え方や前後で読みが変わって当たり前
+    #   (三百人=ニン / 出てきた人=ヒト、四年=ネン / その年=トシ)。
+    COMMON1 = set("人年日中何方上下目手間前後回度月時県市区町村")
     incon = []
     for sf, d in seen_read.items():
         if len(d) < 2: continue
         if len(sf) == 1:
-            if sf in NUM1: continue
+            if sf in NUM1 or sf in COMMON1: continue
             if len({v[3] for v in d.values()}) < 2: continue
         incon.append((sf, d))
 
