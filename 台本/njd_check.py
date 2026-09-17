@@ -85,6 +85,7 @@ EXPECT = {
     "主賓":"シュヒン","一言":"ヒトコト","半年":"ハントシ","実家":"ジッカ","義母":"ギボ",
     "背筋":"セスジ","宛名":"アテナ","飴":"アメ","箸":"ハシ","髪":"カミ",
     "金":"カネ","司会":"シカイ","白髪":"シラガ","日本":"ニホン","方":"カタ",
+    "十分":"ジップン","十五分":"ジューゴフン","一分":"イップン","十日":"トオカ",
     # 台本02(墓・法事)で実機確認した語
     "森口":"モリグチ","和夫":"カズオ","辰次":"タツジ","芳江":"ヨシエ","久美":"クミ",
     "大西":"オーニシ","泰然":"タイゼン","堤":"ツツミ","誠":"マコト",
@@ -112,7 +113,9 @@ def main(path):
             sf, pr = r["surface"], r["pron"]
             if KANJI.search(sf) and (pr in ("*", "") or r["pos1"] == "サ変接続" and pr == "*"):
                 unknown.append((ln, sf, s[:46]))
-            if sf in EXPECT and norm(pr) != norm(EXPECT[sf]):
+            # 接尾辞は複合語の一部(奨学金=ショーガクキン、退職金=タイショクキン)。
+            # 単独の語として立っているときだけ期待読みと比べる。
+            if sf in EXPECT and r["pos1"] != "接尾" and norm(pr) != norm(EXPECT[sf]):
                 mism.append((ln, sf, pr, EXPECT[sf], s[:46]))
         # 固有名詞のアクセント句分割
         for ph in phrases(rows):
@@ -136,6 +139,42 @@ def main(path):
     for ln, sf, pr, want, s in mism: print(f"  L{ln}  「{sf}」→ {pr}  期待:{want}\n        {s}")
     print("\n=== ③ 固有名詞が複数アクセント句に分割 ===");  print("  なし" if not splits else "")
     for nm, c in splits.most_common(): print(f"  {nm}  ({c}箇所)  → 辞書登録で1句にまとめる")
+    # ⑤ 1モーラのアクセント句 = 語の切れ目を間違えている強い兆候
+    #    例「三年かよいました」→ サンネンカ / ヨイマシタ(「か」が前に吸われる)
+    tiny = []
+    for ln, s2 in lines:
+        rows = njd(s2)
+        for ph in phrases(rows):
+            mora = sum(int(x["acc"].split("/")[1]) for x in ph if "/" in x["acc"])
+            txt = "".join(x["surface"] for x in ph)
+            # 助詞などのかな1文字は正常。漢字を含む1モーラ句だけが危険(手→シュ/テ など)
+            if mora == 1 and KANJI.search(txt):
+                tiny.append((ln, txt, "".join(x["pron"] for x in ph), s2[:40]))
+    # ⑥ 数詞+助数詞で読みが割れやすい語(期待リストに無くても機械で拾う)
+    RISK = ["十分", "一分", "三分", "十日", "一行", "一目", "一手", "一言", "上手", "下手",
+            "人気", "大事", "最中", "生物", "色紙", "一目散", "何時",
+            "白髪", "見物", "風車"]
+    risky = []
+    for ln, s2 in lines:
+        for w in RISK:
+            if w in s2:
+                rows = njd(w)
+                risky.append((ln, w, "".join(x["pron"] for x in rows).replace("\u2019", ""), s2[:40]))
+
+    print("\n=== ⑤ 1モーラのアクセント句(語の切れ目を誤っている兆候) ===")
+    print("  なし" if not tiny else "")
+    for ln, txt, pr, s2 in tiny[:20]:
+        print(f"  L{ln}  「{txt}」→ {pr}\n        {s2}")
+    if len(tiny) > 20: print(f"  …ほか {len(tiny)-20}件")
+
+    print("\n=== ⑥ 読みが割れやすい語(出現したら必ず実機で確認) ===")
+    print("  なし" if not risky else "")
+    seen_r = set()
+    for ln, w, pr, s2 in risky:
+        if w in seen_r: continue
+        seen_r.add(w)
+        print(f"  「{w}」→ 単独では {pr}   (L{ln} ほか)")
+
     print("\n=== ④ 長すぎるアクセント句(13モーラ超・不自然になりやすい) ===")
     print("  なし" if not longph else "")
     for ln, txt, m in longph[:20]: print(f"  L{ln}  {txt} ({m}モーラ)  → 読点で割る")
