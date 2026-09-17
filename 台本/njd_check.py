@@ -184,7 +184,7 @@ def main(path):
     #   例:「私はね」→ ワタシ・ハネ、「手に職はね」→ テニショク・ハネ
     NOUN_END = re.compile(r'[\u4e00-\u9fff\u30a0-\u30ff\u3005]')
     KANA_ONLY = re.compile(r'^[\u3041-\u3093]+$')
-    eaten = []
+    eaten, eaten_maybe = [], []
     for ln, s2 in lines:
         if not any(c in s2 for c in "はへを"):
             continue
@@ -197,7 +197,10 @@ def main(path):
             if r["pos"] == "助詞": continue
             if not (sf and sf[0] in "はへを" and KANA_ONLY.match(sf)): continue
             if i > 0 and NOUN_END.match(s2[i-1]):
-                eaten.append((ln, s2[max(0,i-3):i] + sf, r["pron"], s2[:40]))
+                # 名詞どうしは複合語のことがある(往復はがき = オーフクハガキ で正しい)。
+                # 助詞を飲んだ動詞・形容詞・副詞・感動詞だけを事故として数える。
+                bucket = eaten if r["pos"] != "名詞" else eaten_maybe
+                bucket.append((ln, s2[max(0,i-3):i] + sf, r["pron"], s2[:40]))
 
     # ⑧ 語句単位の期待読み(1語ずつでは正しくても、並ぶと崩れるもの)
     PHRASE = {
@@ -220,6 +223,10 @@ def main(path):
         print(f"  L{ln}  「{txt}」→ {pr}   ※助詞ならワ/エ")
         print(f"        {s2}")
     if len(eaten) > 20: print(f"  …ほか {len(eaten)-20}件")
+    if eaten_maybe:
+        print("  (要確認・複合語なら正しい)")
+        for ln, txt, pr, s2 in eaten_maybe[:10]:
+            print(f"  L{ln}  「{txt}」→ {pr}")
 
     print("\n=== ⑧ 語句で崩れる読み ===")
     print("  なし" if not phr else "")
