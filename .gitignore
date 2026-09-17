@@ -6,3 +6,5 @@
 動画/images/*.png
 動画/images/*.jpg
 動画/*.mp4
+台本/_tmp*.md
+台本/*.v2work
