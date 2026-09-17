@@ -46,6 +46,8 @@ def norm(p):
     p = p.replace("'", "").replace("\u2019", "")
     p = re.sub(r'([ウオコソトノホモヨロゴゾドボポョクグスズツヅヌフブプムユルュ])ウ', lambda m: m.group(1) + "ー", p)
     p = re.sub(r'([ケセテネヘメレゲゼデベペェ])イ', lambda m: m.group(1) + "ー", p)
+    # オ段+オ も長音(十日 トオカ = トーカ)。期待リストの表記ゆれで誤検知していた。
+    p = re.sub(r'([ウオコソトノホモヨロゴゾドボポョ])オ', lambda m: m.group(1) + "ー", p)
     return p
 
 def phrases(rows):

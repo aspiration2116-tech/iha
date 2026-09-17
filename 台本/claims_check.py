@@ -25,7 +25,10 @@ DESIGN = {
     "越えてはいけない一線": 40, "受諾": 50, "準備": 145,
     "反転": 390, "転落": 70, "締め": 150,
 }
-RATE = 4.96
+# 台本01 v17 の実測: 発話6,137字 / 無音10.1秒 / 尺20:37(=1,237秒)。
+# 4.96字/秒 は無音込みの実効値なので、無音を別に足すなら発話だけの速度を使う。
+RATE = 5.002  # 字/秒(発話のみ)
+DESIGN_TOTAL = sum(DESIGN.values())  # 1,240秒 = 20:40
 
 def main(path):
     src = open(path, encoding="utf-8").read()
@@ -71,21 +74,29 @@ def main(path):
     if not missing:
         print("  ✅ ヘッダの引用はすべて本文にある")
 
-    print("\n=== ② 章の配分(マニュアル1章の設計値との差)")
     parts = re.split(r'\n## 【[^】]+】', body)
     titles = re.findall(r'\n## 【[^】]+】(.*)', body)
-    over = 0
+    secs = []
     for title, sec in zip(titles, parts[1:]):
         lines = [l for l in sec.split("\n") if l.startswith("**") and not l.startswith("**【")]
         n = sum(len(re.sub(r'^\*\*[^*]+\*\*', '', l)) for l in lines)
         sil = sum(float(x) for x in re.findall(r'【無音([\d.]+)秒】', sec))
-        d = n / RATE + sil
+        secs.append((title, n / RATE + sil))
+
+    # 設計値は総尺20:40のときの秒数。台本ごとに尺は違うので、
+    # 設計値をその台本の尺に比例させてから比べる(見るのは配分であって絶対秒ではない)。
+    total = sum(d for _, d in secs)
+    scale = total / DESIGN_TOTAL
+    print(f"\n=== ② 章の配分(設計値を総尺{int(total)//60}:{int(total)%60:02d}に按分して比較)")
+    over = 0
+    for title, d in secs:
         key = next((k for k in DESIGN if k in title), None)
         if not key: continue
-        diff = d - DESIGN[key]
+        tgt = DESIGN[key] * scale
+        diff = d - tgt
         mark = ""
         if abs(diff) >= 45:
-            mark = f"  ← 設計{DESIGN[key]//60}:{DESIGN[key]%60:02d}から{diff:+.0f}秒"
+            mark = f"  ← 設計{int(tgt)//60}:{int(tgt)%60:02d}から{diff:+.0f}秒"
             over += 1
         print(f"  {int(d)//60}:{int(d)%60:02d}  {title.strip()[:20]}{mark}")
     print(f"\n{'─'*56}")
