@@ -62,17 +62,44 @@ def main(path):
     print(f"検査: {path}\n発話 {total} / 地の文+ナレ {len(narr)} / 他話者 {len(line)}\n")
 
     # ① 文末の連続
+    #   マニュアル6章の合格条件は「文末表現の3連続以上 0」で、"地の文の" とは書いていない。
+    #   地の文しか見ていなかったため、台詞に化けたモノローグの3連続(台本10 v3 で3か所)が
+    #   素通りしていた。地の文と台詞を別々に数えて、どちらも要修正にする。
     print("=== ① 文末表現の連続(3回以上は要修正) ===")
-    seq, runs, cur = [ending(t) for sp, t, _ in items if sp in NARR and not t.lstrip().startswith("「")], [], []
-    for e in seq:
-        if cur and cur[-1] == e: cur.append(e)
-        else:
-            if len(cur) >= 3: runs.append((cur[0], len(cur)))
-            cur = [e]
-    if len(cur) >= 3: runs.append((cur[0], len(cur)))
+    def runs_of(pairs):
+        """(識別子, 文末) の並びから3連続以上を拾う"""
+        out, cur = [], []
+        for key, e in pairs:
+            if cur and cur[-1][1] == e: cur.append((key, e))
+            else:
+                if len(cur) >= 3: out.append(cur)
+                cur = [(key, e)]
+        if len(cur) >= 3: out.append(cur)
+        return out
+
+    seq = [ending(t) for sp, t, _ in items if sp in NARR and not t.lstrip().startswith("「")]
+    runs = runs_of([(t, ending(t)) for sp, t, _ in items
+                    if sp in NARR and not t.lstrip().startswith("「")])
+    print("  [地の文]")
     if runs:
-        for e, n in sorted(runs, key=lambda x: -x[1]): print(f"  「…{e}」が {n}回連続")
-    else: print("  なし")
+        for g in sorted(runs, key=lambda x: -len(x)):
+            print(f"    「…{g[0][1]}」が {len(g)}回連続")
+            for t, _ in g: print(f"       {t[:34]}")
+    else: print("    なし")
+    # 台詞は「」で始まる行だけを、話者に関係なく並び順で見る。
+    # 地の文が1行でも挟まればそこで切れる(耳に届くのは並び順だから)。
+    dlg, cur_d = [], []
+    for sp, t, _ in items:
+        if t.lstrip().startswith("「"): cur_d.append((f"{sp}{t}", ending(t)))
+        else:
+            dlg += runs_of(cur_d); cur_d = []
+    dlg += runs_of(cur_d)
+    print("  [台詞]")
+    if dlg:
+        for g in sorted(dlg, key=lambda x: -len(x)):
+            print(f"    「…{g[0][1]}」が {len(g)}回連続")
+            for t, _ in g: print(f"       {t[:34]}")
+    else: print("    なし")
     c = collections.Counter(seq)
     print(f"  地の文 {len(seq)}文 / 文末の種類 {len(c)}種")
     for e, n in c.most_common(6):
@@ -96,6 +123,15 @@ def main(path):
         for n in sorted(runs, reverse=True)[:8]:
             print(f"  地の文が {n}連続" + ("  ← 長い" if n >= 12 else ""))
     else: print("  なし")
+    # 台詞に化けたモノローグ(同じ話者が何行続けて喋るか)。
+    # ③が地の文しか見ていなかったため、台本10 v3 の23発話連続が素通りした。
+    best, cur_sp, cur_n, cur_at = (0, None, 0), None, 0, 0
+    for i, (sp, t, _) in enumerate(items):
+        if sp == cur_sp: cur_n += 1
+        else: cur_sp, cur_n, cur_at = sp, 1, i
+        if cur_n > best[0]: best = (cur_n, sp, items[cur_at][1])
+    print(f"  同じ話者の最長連続: {best[0]}行  {best[1]} 「{best[2][:24]}」から"
+          + ("  ← 15以上はモノローグ。別の声を一つ入れる" if best[0] >= 15 else ""))
     cc = collections.Counter(sp for sp, _, _ in items)
     print("  話者比率: " + " / ".join(f"{k} {v}({v/total*100:.0f}%)" for k, v in cc.most_common()))
 
