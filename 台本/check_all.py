@@ -44,7 +44,7 @@ for path in sorted(glob.glob(os.path.join(HERE, "*_原稿.md"))):
         return "0" if (m and m.group(1).strip() == "なし") else "×"
     def runs_ok(text):
         # ①は v2 で [地の文]/[台詞] の小見出しに分かれた。両方が「なし」なら0。
-        m = re.search(r'=== ① 文末表現の連続.*?===\n(.*?)\n地の文 ', text, re.S)
+        m = re.search(r'=== ① 文末表現の連続.*?===\n(.*?)\n\s*地の文 ', text, re.S)
         if not m: return "?"
         block = m.group(1)
         subs = re.findall(r'\[[^\]]+\]\s*\n\s*(\S+)', block)
