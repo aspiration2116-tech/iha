@@ -42,7 +42,14 @@ for path in sorted(glob.glob(os.path.join(HERE, "*_原稿.md"))):
     def section_ok(text, head):
         m = re.search(re.escape(head) + r'\s*\n\s*(.*)', text)
         return "0" if (m and m.group(1).strip() == "なし") else "×"
-    runs = section_ok(sty, "=== ① 文末表現の連続(3回以上は要修正) ===")
+    def runs_ok(text):
+        # ①は v2 で [地の文]/[台詞] の小見出しに分かれた。両方が「なし」なら0。
+        m = re.search(r'=== ① 文末表現の連続.*?===\n(.*?)\n地の文 ', text, re.S)
+        if not m: return "?"
+        block = m.group(1)
+        subs = re.findall(r'\[[^\]]+\]\s*\n\s*(\S+)', block)
+        return "0" if subs and all(x == "なし" for x in subs) else "×"
+    runs = runs_ok(sty)
     narr = section_ok(sty, "=== ③ 地の文が続く最長区間(8以上は要修正) ===")
     mashita = num(sty, r'…ました\s+\d+回 \(\s*([\d.]+)%\)', "?")
     serifu  = num(sty, r'セリフ \d+/\d+ = (\d+)%', "?")
