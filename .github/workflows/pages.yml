@@ -1,0 +1,36 @@
+# sedori/ を GitHub Pages に自動配信する。
+# 初回は Pages を自動で有効化する(enablement: true)。失敗する場合は
+# Settings → Pages → Source を「GitHub Actions」にしてから再実行する。
+name: Deploy sedori to GitHub Pages
+
+on:
+  push:
+    branches: [main, sedori-app]
+    paths: ['sedori/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: sedori
+      - id: deployment
+        uses: actions/deploy-pages@v4

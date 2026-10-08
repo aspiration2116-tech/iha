@@ -105,6 +105,10 @@ nav.bottom button .cnt{position:absolute;margin-left:30px;margin-top:-2px;backgr
 .result{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
 .result .stat .v{font-size:18px}
 .profit-big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.verdict{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;margin-bottom:10px;background:var(--bg)}
+.verdict .big{font-size:22px;font-weight:800;padding:4px 12px;border-radius:8px;white-space:nowrap}
+.verdict.buy .big{background:var(--good);color:#fff} .verdict.hold .big{background:var(--warn);color:#fff} .verdict.pass .big{background:var(--bad);color:#fff} .verdict.none .big{background:var(--line);color:var(--muted)}
+.verdict ul{margin:0;padding-left:16px;font-size:12px;line-height:1.5}
 .toggle{display:flex;align-items:center;gap:8px;font-size:13px}
 .toggle input{width:auto}
 
@@ -511,7 +515,8 @@ function showProduct(p, scannedJan){
     <div id="graphBox"></div>
   </div>
   <div class="card">
-    <h2>利益計算</h2>
+    <h2>仕入れ判断・利益計算</h2>
+    <div class="verdict none" id="verdict"><div class="big">判定</div><ul><li>仕入れ値を入れると判定します</li></ul></div>
     <div class="calc">
       <label><span>仕入れ値 円</span><input id="cCost" type="number" inputmode="numeric" min="0" step="1" value="${esc(cost)}" placeholder="0"></label>
       <label><span>販売価格 円</span><input id="cSell" type="number" inputmode="numeric" min="0" step="1" value="${sell}"></label>
@@ -560,6 +565,31 @@ function recalc(){
   $('rMargin').textContent = pct(r.margin);
   $('rRoi').textContent = o.cost > 0 ? pct(r.roi) : '-';
   $('rBreak').textContent = yen(Math.max(0, r.breakEven(settings.target))) + ' / 手数料 ' + yen(r.fees);
+  renderVerdict(o, r);
+}
+// せどりすと風の判定: 売れ行き(30日の販売回数/ランク)× 利益率 × 競合
+function renderVerdict(o, r){
+  const p = current, el = $('verdict'); if (!p || !el) return;
+  if (!(o.cost > 0)){ el.className = 'verdict none'; el.innerHTML = '<div class="big">判定</div><ul><li>仕入れ値を入れると判定します</li></ul>'; return; }
+  const reasons = [];
+  let sales; // 2=良 1=普通 0=低
+  if (p.drops30 != null){ sales = p.drops30 >= 10 ? 2 : p.drops30 >= 3 ? 1 : 0; reasons.push('30日で' + p.drops30 + '回売れている(' + ['少ない','普通','よく売れる'][sales] + ')'); }
+  else if (p.rank != null){ sales = p.rank <= 10000 ? 2 : p.rank <= 100000 ? 1 : 0; reasons.push('ランキング ' + num(p.rank) + '(' + ['低い','普通','良い'][sales] + ')'); }
+  else { sales = 0; reasons.push('売れ行きのデータなし'); }
+  const m = r.margin == null ? -1 : r.margin * 100, t = settings.target;
+  const prof = r.profit <= 0 ? -1 : m >= t ? 2 : m >= t / 2 ? 1 : 0;
+  reasons.push(r.profit <= 0 ? '赤字(' + yen(r.profit) + ')' : '利益 ' + yen(r.profit) + '・利益率 ' + m.toFixed(1) + '%(目標 ' + t + '%)');
+  let risk = 0;
+  if (p.bbIsAmazon || p.amazon != null){ risk++; reasons.push('Amazon本体が販売中(カート取得が難しい)'); }
+  if (p.offersFBA != null && p.offersFBA >= 10){ risk++; reasons.push('FBA出品者が' + p.offersFBA + '人(値下げ競争に注意)'); }
+  if (p.new90 != null && o.sell > p.new90 * 1.15) reasons.push('販売価格が90日平均(' + yen(p.new90) + ')より高め。下落に注意');
+  let v;
+  if (prof < 0 || (prof === 0 && sales === 0)) v = 'pass';
+  else if (prof === 2 && sales === 2 && risk === 0) v = 'buy';
+  else if (prof >= 1 && sales >= 1 && risk <= 1) v = prof === 2 && sales === 2 ? 'buy' : 'hold';
+  else v = sales === 0 || prof === 0 ? 'pass' : 'hold';
+  el.className = 'verdict ' + v;
+  el.innerHTML = '<div class="big">' + { buy: '買い', hold: '検討', pass: '見送り' }[v] + '</div><ul>' + reasons.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
 }
 function saveCurrent(){
   if (!current) return;
