@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="せどり">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>せどり仕入れツール</title>
+<style>
+/* レイアウト: 下タブ3枚のスマホ向け単画面ツール。上に検索、結果カード、利益計算の順 */
+:root{
+  --bg:#f3f5f8; --card:#ffffff; --fg:#1b2430; --muted:#5d6b7c; --line:#d9e0e8;
+  --accent:#1f3a5f; --accent-fg:#ffffff; --accent-soft:#e4ecf6;
+  --good:#1b7f4b; --good-soft:#e2f3ea; --bad:#c0392b; --bad-soft:#fbe7e4; --warn:#9a6700; --warn-soft:#fff3cd;
+  --font:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif;
+  --mono:"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111820; --card:#1a2330; --fg:#e8edf3; --muted:#9aa8b8; --line:#2c3a4a;
+    --accent:#6ea2e0; --accent-fg:#0d1621; --accent-soft:#1f3047;
+    --good:#4fcf86; --good-soft:#163526; --bad:#ff7b6b; --bad-soft:#44201c; --warn:#f0c04a; --warn-soft:#3d3010;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111820; --card:#1a2330; --fg:#e8edf3; --muted:#9aa8b8; --line:#2c3a4a;
+  --accent:#6ea2e0; --accent-fg:#0d1621; --accent-soft:#1f3047;
+  --good:#4fcf86; --good-soft:#163526; --bad:#ff7b6b; --bad-soft:#44201c; --warn:#f0c04a; --warn-soft:#3d3010;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[type=number]{font-variant-numeric:tabular-nums}
+button{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;white-space:nowrap}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+button.small{padding:5px 9px;font-size:13px}
+button:disabled{opacity:.5;cursor:default}
+a{color:var(--accent)}
+.hidden{display:none!important}
+
+header.top{position:sticky;top:0;z-index:5;background:var(--accent);color:var(--accent-fg);padding:calc(8px + env(safe-area-inset-top,0px)) 16px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+header.top h1{margin:0;font-size:17px;font-weight:700}
+.chip{font-size:12px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.18);font-variant-numeric:tabular-nums}
+main{padding:12px 16px calc(76px + env(safe-area-inset-bottom,0px));max-width:720px;margin:0 auto}
+section.tab{display:none}
+section.tab.active{display:block}
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.bottom button{flex:1;border:0;border-radius:0;background:transparent;padding:9px 4px 7px;color:var(--muted);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav.bottom button .ico{font-size:20px;line-height:1}
+nav.bottom button.active{color:var(--accent);font-weight:700}
+nav.bottom button .cnt{position:absolute;margin-left:34px;margin-top:-2px;background:var(--bad);color:#fff;font-size:10px;border-radius:999px;padding:0 5px;min-width:16px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.card h2{margin:0 0 8px;font-size:14px;color:var(--muted);font-weight:600;letter-spacing:.04em}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>*{min-width:0}
+.grow{flex:1}
+.searchbar{display:flex;gap:8px}
+.searchbar input{flex:1}
+.searchbar button{flex:none}
+.muted{color:var(--muted);font-size:13px}
+.msg{padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:14px;white-space:pre-wrap}
+.msg.err{background:var(--bad-soft);color:var(--bad)}
+.msg.info{background:var(--accent-soft)}
+.msg.warn{background:var(--warn-soft);color:var(--warn)}
+
+/* スキャナ */
+.scanner video{width:100%;max-height:48vh;background:#000;border-radius:10px;object-fit:cover}
+.scanner .guide{position:relative}
+.scanner .guide::after{content:"";position:absolute;left:12%;right:12%;top:40%;height:20%;border:2px solid rgba(255,255,255,.8);border-radius:6px;pointer-events:none}
+
+/* 商品カード */
+.prod{display:grid;grid-template-columns:88px 1fr;gap:12px}
+.prod img{width:88px;height:88px;object-fit:contain;background:#fff;border-radius:8px;border:1px solid var(--line)}
+.prod .title{font-weight:600;font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.prod .ids{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:4px;word-break:break-all}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.stat{background:var(--bg);border-radius:8px;padding:6px 8px}
+.stat .l{font-size:11px;color:var(--muted)}
+.stat .v{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .s{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stat.good .v{color:var(--good)} .stat.bad .v{color:var(--bad)} .stat.warn .v{color:var(--warn)}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.charts canvas{width:100%;height:80px;background:var(--bg);border-radius:8px}
+.charts .l{font-size:11px;color:var(--muted);margin-bottom:2px}
+.links{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.links a,.links button{font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;text-decoration:none;background:var(--card);color:var(--fg)}
+
+/* 利益計算 */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.calc label{display:block;font-size:12px;color:var(--muted)}
+.calc label span{display:block;margin-bottom:2px}
+.calc .full{grid-column:1/-1}
+.result{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.result .stat .v{font-size:18px}
+.profit-big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.toggle{display:flex;align-items:center;gap:8px;font-size:13px}
+.toggle input{width:auto}
+
+/* リスト */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chips button{border-radius:999px;padding:5px 11px;font-size:13px}
+.chips button.active{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.item{display:grid;grid-template-columns:56px 1fr auto;gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:start}
+.item:first-of-type{border-top:0}
+.item img{width:56px;height:56px;object-fit:contain;background:#fff;border-radius:6px;border:1px solid var(--line)}
+.item .t{font-size:13px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.item .m{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.item .p{font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
+.item .p.good{color:var(--good)} .item .p.bad{color:var(--bad)}
+.item select{padding:4px 6px;font-size:12px;margin-top:4px}
+.item .ops{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.status{font-size:11px;padding:1px 6px;border-radius:4px;background:var(--accent-soft)}
+.hist button{display:block;width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;padding:8px 0;font-size:13px}
+.hist button:first-child{border-top:0}
+textarea{font-family:var(--mono);font-size:12px;min-height:90px}
+.setting{margin-bottom:12px}
+.setting label{display:block;font-size:13px;font-weight:600;margin-bottom:3px}
+.setting .help{font-size:12px;color:var(--muted);margin-top:3px}
+.srch .item{cursor:pointer}
+@media (prefers-reduced-motion: no-preference){ .spin{animation:sp 1s linear infinite} }
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>せどり仕入れツール</h1>
+  <div class="row" style="gap:6px">
+    <span class="chip" id="tokenChip" title="Keepaトークン残">token: -</span>
+    <span class="chip" id="modeChip">未設定</span>
+  </div>
+</header>
+
+<main>
+<!-- ====== リサーチ ====== -->
+<section class="tab active" id="tab-research">
+  <div class="card">
+    <div class="searchbar">
+      <input id="q" type="search" inputmode="search" enterkeyhint="search" placeholder="JAN / ASIN / 商品名" autocomplete="off">
+      <button class="primary" id="btnSearch">検索</button>
+      <button id="btnScan" title="バーコードを読む">📷</button>
+    </div>
+    <div class="row" style="margin-top:8px;justify-content:space-between">
+      <span class="muted">バーコードは13桁または8桁のJAN。ASINは10桁</span>
+      <label class="small" style="font-size:13px;cursor:pointer">📁 写真から読む<input id="photoIn" type="file" accept="image/*" capture="environment" class="hidden"></label>
+    </div>
+  </div>
+
+  <div class="card scanner hidden" id="scanner">
+    <div class="guide"><video id="video" playsinline muted autoplay></video></div>
+    <div class="row" style="margin-top:8px;justify-content:space-between">
+      <span class="muted" id="scanMsg">バーコードを枠に合わせてください</span>
+      <button class="small" id="btnScanStop">閉じる</button>
+    </div>
+  </div>
+
+  <div id="msg"></div>
+  <div id="result"></div>
+  <div id="searchResults"></div>
+
+  <div class="card" id="histCard">
+    <h2>最近見た商品</h2>
+    <div class="hist" id="hist"></div>
+  </div>
+</section>
+
+<!-- ====== リスト ====== -->
+<section class="tab" id="tab-list">
+  <div class="chips" id="statusChips"></div>
+  <div class="summary" id="listSummary"></div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+      <h2 style="margin:0">仕入れリスト</h2>
+      <div class="row" style="gap:4px">
+        <button class="small" id="btnRefreshAll">全件 価格更新</button>
+        <button class="small" id="btnExport">書き出し</button>
+      </div>
+    </div>
+    <div id="list"></div>
+  </div>
+  <div class="card hidden" id="exportCard">
+    <h2>書き出し / 読み込み</h2>
+    <div class="row" style="margin-bottom:6px">
+      <button class="small" id="btnCopyCsv">CSVをコピー</button>
+      <button class="small" id="btnCopyJson">JSONをコピー</button>
+      <button class="small" id="btnDownloadCsv">CSVを保存</button>
+    </div>
+    <textarea id="importBox" placeholder="JSONを貼り付けて「読み込み」を押すと、同じASINは上書き・それ以外は追加されます"></textarea>
+    <div class="row" style="margin-top:6px"><button class="small" id="btnImport">読み込み</button><button class="small" id="btnExportClose">閉じる</button></div>
+  </div>
+</section>
+
+<!-- ====== 設定 ====== -->
+<section class="tab" id="tab-settings">
+  <div class="card">
+    <h2>Keepa API</h2>
+    <div class="setting">
+      <label for="setKey">APIキー</label>
+      <input id="setKey" type="password" autocomplete="off" placeholder="Keepaのアクセスキー(64文字)">
+      <div class="help">この端末のブラウザにだけ保存されます。 <a href="https://keepa.com/#!api" target="_blank" rel="noopener">Keepa API設定ページ</a></div>
+    </div>
+    <div class="setting">
+      <label for="setMode">接続方法</label>
+      <select id="setMode">
+        <option value="direct">ブラウザから直接Keepaを呼ぶ</option>
+        <option value="proxy">中継サーバー経由(keepa_proxy.py)</option>
+      </select>
+    </div>
+    <div class="setting" id="proxyRow">
+      <label for="setProxy">中継サーバーのURL</label>
+      <input id="setProxy" type="url" placeholder="http://192.168.1.10:8771" autocomplete="off">
+      <div class="help">Macで「せどり.command」を実行すると表示されるURL。直接接続で「通信に失敗」と出る場合に使います</div>
+    </div>
+    <div class="row"><button class="small" id="btnTestKey">接続テスト</button><span class="muted" id="testMsg"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>手数料の初期値(Keepaから取れない時に使う)</h2>
+    <div class="calc">
+      <label><span>販売手数料 %</span><input id="setRef" type="number" inputmode="decimal" step="0.5" min="0" max="100"></label>
+      <label><span>FBA配送代行手数料 円</span><input id="setFba" type="number" inputmode="numeric" step="1" min="0"></label>
+      <label><span>その他コスト 円(送料・梱包)</span><input id="setOther" type="number" inputmode="numeric" step="1" min="0"></label>
+      <label><span>目標利益率 %</span><input id="setTarget" type="number" inputmode="decimal" step="1" min="0" max="100"></label>
+      <label class="full toggle"><input id="setTax" type="checkbox"> 手数料に消費税10%を上乗せして計算する</label>
+    </div>
+    <div class="help muted" style="margin-top:6px">販売手数料の目安: 家電・カメラ・PC 8% / 本・DVD・おもちゃ・ホビー・ゲーム 10% / その他ほとんど 15%。FBA配送代行は小型 約300円、標準 約400〜600円、大型 800円〜。</div>
+  </div>
+
+  <div class="card">
+    <h2>データ</h2>
+    <div class="row">
+      <button class="small" id="btnClearHist">履歴を消す</button>
+      <button class="small" id="btnClearAll">リストを全消去</button>
+    </div>
+    <div class="help muted" style="margin-top:6px">リストと履歴はこの端末のブラウザ内に保存されます。機種変更の前に「リスト → 書き出し」でJSONを控えてください。</div>
+  </div>
+  <div class="muted" style="text-align:center;font-size:12px">v1.0 · Keepa API(amazon.co.jp)</div>
+</section>
+</main>
+
+<nav class="bottom">
+  <button data-tab="research" class="active"><span class="ico">🔍</span>リサーチ</button>
+  <button data-tab="list"><span class="ico">📦</span>リスト<span class="cnt hidden" id="listCnt"></span></button>
+  <button data-tab="settings"><span class="ico">⚙️</span>設定</button>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js" defer></script>
+<script>
+'use strict';
+// ====== 保存 ======
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const DEF_SETTINGS = { key:'', mode:'direct', proxy:'', ref:15, fba:450, other:0, target:20, tax:true };
+let settings = Object.assign({}, DEF_SETTINGS, LS.get('settings', {}));
+let list = LS.get('list', []);          // 仕入れリスト
+let hist = LS.get('hist', []);          // 最近見た商品(軽量)
+let statusFilter = 'all';
+let current = null;                      // いま表示中の商品
+const STATUSES = ['候補','仕入済','出品中','売却済'];
+
+const $ = id => document.getElementById(id);
+const yen = v => (v==null || isNaN(v)) ? '-' : '¥' + Math.round(v).toLocaleString('ja-JP');
+const num = v => (v==null || isNaN(v)) ? '-' : Math.round(v).toLocaleString('ja-JP');
+const pct = v => (v==null || isNaN(v) || !isFinite(v)) ? '-' : (v*100).toFixed(1) + '%';
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ====== Keepa ======
+const KEEPA_MIN_OFFSET = 21564000; // Keepa分 → UNIX分
+const kt = m => (m + KEEPA_MIN_OFFSET) * 60000;
+function keepaUrl(endpoint, params){
+  const p = new URLSearchParams(Object.assign({ key: settings.key, domain: 5 }, params));
+  if (settings.mode === 'proxy' && settings.proxy){
+    return settings.proxy.replace(/\/+$/, '') + '/keepa/' + endpoint + '?' + p.toString();
+  }
+  return 'https://api.keepa.com/' + endpoint + '?' + p.toString();
+}
+async function keepa(endpoint, params){
+  if (!settings.key) throw new Error('KeepaのAPIキーが未設定です。「設定」タブで入力してください。');
+  let res;
+  try {
+    res = await fetch(keepaUrl(endpoint, params), { cache: 'no-store' });
+  } catch (e) {
+    throw new Error('通信に失敗しました。ブラウザから直接Keepaに接続できない場合は、設定で「中継サーバー経由」に切り替えてください。\n(' + e.message + ')');
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) {}
+  if (data && data.tokensLeft != null) setTokens(data.tokensLeft);
+  if (!res.ok){
+    const m = data && data.error ? (data.error.message || data.error.type) : ('HTTP ' + res.status);
+    if (res.status === 429) throw new Error('Keepaのトークンが不足しています(' + m + ')。少し待ってから再試行してください。');
+    if (res.status === 400 && /key/i.test(m)) throw new Error('APIキーが正しくありません(' + m + ')');
+    throw new Error('Keepaエラー: ' + m);
+  }
+  return data;
+}
+function setTokens(n){ $('tokenChip').textContent = 'token: ' + n; }
+
+// stats配列は -1 が「なし」。価格は日本は円単位でそのまま
+function val(a, i){ return (a && a[i] != null && a[i] >= 0) ? a[i] : null; }
+function parseProduct(p){
+  const st = p.stats || {}, cur = st.current || [], a30 = st.avg30 || [], a90 = st.avg90 || [];
+  const bbPrice = (st.buyBoxPrice != null && st.buyBoxPrice > 0)
+    ? st.buyBoxPrice + ((st.buyBoxShipping != null && st.buyBoxShipping > 0) ? st.buyBoxShipping : 0)
+    : val(cur, 18);
+  const cats = (p.categoryTree || []).map(c => c.name);
+  return {
+    asin: p.asin, title: p.title || '(タイトルなし)',
+    img: p.imagesCSV ? 'https://m.media-amazon.com/images/I/' + p.imagesCSV.split(',')[0] : '',
+    jan: (p.eanList && p.eanList[0]) || (p.upcList && p.upcList[0]) || '',
+    category: cats.join(' › '), rootCat: cats[0] || '',
+    rank: val(cur, 3), rank30: val(a30, 3), rank90: val(a90, 3),
+    amazon: val(cur, 0), newest: val(cur, 1), used: val(cur, 2), fba: val(cur, 10), fbm: val(cur, 7),
+    bb: bbPrice, bbIsAmazon: !!st.buyBoxIsAmazon, bbIsFBA: !!st.buyBoxIsFBA,
+    new90: val(a90, 1), bb90: val(a90, 18), new30: val(a30, 1),
+    countNew: val(cur, 11), countUsed: val(cur, 12),
+    offersFBA: st.offerCountFBA, offersFBM: st.offerCountFBM,
+    drops30: st.salesRankDrops30, drops90: st.salesRankDrops90,
+    monthlySold: p.monthlySold,
+    reviews: val(cur, 17), rating: val(cur, 16),
+    refPct: (p.referralFeePercent != null && p.referralFeePercent > 0) ? p.referralFeePercent : null,
+    fbaFee: (p.fbaFees && p.fbaFees.pickAndPackFee > 0) ? p.fbaFees.pickAndPackFee : null,
+    weight: p.packageWeight, dims: [p.packageLength, p.packageWidth, p.packageHeight],
+    rankHist: (p.csv && p.csv[3]) || null,
+    priceHist: (p.csv && (p.csv[18] || p.csv[1])) || null,
+    priceHistTriple: !!(p.csv && p.csv[18]),
+    fetchedAt: Date.now()
+  };
+}
+
+// ====== 利益計算 ======
+function calcProfit(o){
+  // o: {sell, cost, refPct, fbaFee, other, tax}
+  const taxMul = o.tax ? 1.1 : 1;
+  const ref = o.sell * (o.refPct / 100) * taxMul;
+  const fba = o.fbaFee * taxMul;
+  const fees = ref + fba;
+  const profit = o.sell - fees - o.cost - o.other;
+  return {
+    ref, fba, fees, profit,
+    margin: o.sell > 0 ? profit / o.sell : null,
+    roi: o.cost > 0 ? profit / o.cost : null,
+    breakEven: (target) => o.sell * (1 - target / 100) - fees - o.other
+  };
+}
+
+// ====== 表示 ======
+function showMsg(text, kind){
+  $('msg').innerHTML = text ? '<div class="msg ' + (kind || 'info') + '">' + esc(text) + '</div>' : '';
+}
+function classify(q){
+  const s = q.trim().replace(/[\s-]/g, '');
+  if (/^\d{13}$/.test(s) || /^\d{8}$/.test(s) || /^\d{12}$/.test(s)) return { type: 'code', value: s };
+  if (/^B[0-9A-Z]{9}$/i.test(s) || /^\d{10}$/.test(s)) return { type: 'asin', value: s.toUpperCase() };
+  return { type: 'term', value: q.trim() };
+}
+async function lookup(q){
+  const c = classify(q);
+  if (!c.value) return;
+  showMsg('検索中… (' + (c.type === 'term' ? '商品名' : c.type.toUpperCase()) + ')', 'info');
+  $('searchResults').innerHTML = '';
+  try {
+    let data;
+    if (c.type === 'term'){
+      data = await keepa('search', { type: 'product', term: c.value, stats: 90 });
+      const prods = (data.products || []).map(parseProduct);
+      showMsg('');
+      if (!prods.length) return showMsg('見つかりませんでした: ' + c.value, 'warn');
+      renderSearchResults(prods);
+      return;
+    }
+    const params = { stats: 90, history: 1, days: 90 };
+    if (c.type === 'code') params.code = c.value; else params.asin = c.value;
+    data = await keepa('product', params);
+    const prods = (data.products || []).filter(p => p.title).map(parseProduct);
+    showMsg('');
+    if (!prods.length) return showMsg('Amazon.co.jpに該当商品がありません: ' + c.value, 'warn');
+    if (prods.length > 1){ renderSearchResults(prods); }
+    showProduct(prods[0], c.type === 'code' ? c.value : '');
+  } catch (e) {
+    showMsg(e.message, 'err');
+  }
+}
+function renderSearchResults(prods){
+  const h = prods.map((p, i) => `
+    <div class="item" data-i="${i}">
+      <img src="${esc(p.img)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+      <div><div class="t">${esc(p.title)}</div>
+        <div class="m">${esc(p.asin)} · ランク ${num(p.rank)} · 30日 ${p.drops30 != null ? p.drops30 + '回' : '-'}</div></div>
+      <div class="p">${yen(p.bb != null ? p.bb : p.newest)}</div>
+    </div>`).join('');
+  $('searchResults').innerHTML = '<div class="card srch"><h2>検索結果(タップで詳細)</h2>' + h + '</div>';
+  $('searchResults').querySelectorAll('.item').forEach(el => {
+    el.addEventListener('click', () => { showProduct(prods[+el.dataset.i], ''); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  });
+}
+
+function showProduct(p, scannedJan){
+  current = p;
+  if (scannedJan && !p.jan) p.jan = scannedJan;
+  pushHist(p);
+  const saved = list.find(x => x.asin === p.asin);
+  const refPct = p.refPct != null ? p.refPct : settings.ref;
+  const fbaFee = p.fbaFee != null ? p.fbaFee : settings.fba;
+  const sell = p.bb != null ? p.bb : (p.fba != null ? p.fba : (p.newest != null ? p.newest : 0));
+  const cost = saved ? saved.cost : '';
+  const rankCls = p.rank == null ? '' : (p.rank <= 5000 ? 'good' : p.rank <= 50000 ? '' : p.rank <= 200000 ? 'warn' : 'bad');
+  const dropsCls = p.drops30 == null ? '' : (p.drops30 >= 10 ? 'good' : p.drops30 >= 3 ? '' : 'bad');
+  const sellers = (p.countNew != null ? '新品 ' + p.countNew : '-') +
+    (p.offersFBA != null ? ' (FBA ' + p.offersFBA + ' / 自己 ' + (p.offersFBM != null ? p.offersFBM : '-') + ')' : '') +
+    (p.countUsed != null ? ' · 中古 ' + p.countUsed : '');
+  const bbTag = p.bb == null ? '' : p.bbIsAmazon ? 'Amazon本体' : p.bbIsFBA ? 'FBA出品者' : '自己発送';
+  const q = encodeURIComponent(p.jan || p.title);
+  $('result').innerHTML = `
+  <div class="card">
+    <div class="prod">
+      <img src="${esc(p.img)}" alt="" onerror="this.style.visibility='hidden'">
+      <div>
+        <div class="title">${esc(p.title)}</div>
+        <div class="ids">${esc(p.asin)}${p.jan ? ' · JAN ' + esc(p.jan) : ''}</div>
+        <div class="muted" style="font-size:12px">${esc(p.category || '')}</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat ${rankCls}"><div class="l">ランキング</div><div class="v">${num(p.rank)}</div><div class="s">30日 ${num(p.rank30)} / 90日 ${num(p.rank90)}</div></div>
+      <div class="stat ${dropsCls}"><div class="l">売れた回数(ランク変動)</div><div class="v">${p.drops30 != null ? p.drops30 + '回' : '-'}</div><div class="s">30日 / 90日 ${p.drops90 != null ? p.drops90 + '回' : '-'}</div></div>
+      <div class="stat"><div class="l">月間販売数(Amazon表示)</div><div class="v">${p.monthlySold != null ? p.monthlySold + '+' : '-'}</div><div class="s">★${p.rating != null ? (p.rating / 10).toFixed(1) : '-'} · ${num(p.reviews)}件</div></div>
+      <div class="stat"><div class="l">カート価格</div><div class="v">${yen(p.bb)}</div><div class="s">${esc(bbTag) || '-'}</div></div>
+      <div class="stat"><div class="l">Amazon本体</div><div class="v">${yen(p.amazon)}</div><div class="s">${p.amazon != null ? '本体あり' : '本体なし'}</div></div>
+      <div class="stat"><div class="l">新品最安(FBA)</div><div class="v">${yen(p.fba)}</div><div class="s">新品全体 ${yen(p.newest)}</div></div>
+      <div class="stat"><div class="l">新品 90日平均</div><div class="v">${yen(p.new90)}</div><div class="s">30日 ${yen(p.new30)}</div></div>
+      <div class="stat"><div class="l">中古最安</div><div class="v">${yen(p.used)}</div><div class="s">${p.weight ? Math.round(p.weight) + 'g' : ''}</div></div>
+      <div class="stat"><div class="l">出品者数</div><div class="v" style="font-size:13px">${esc(sellers)}</div></div>
+    </div>
+    <div class="charts">
+      <div><div class="l">ランキング推移(90日・下が良い順位)</div><canvas id="cRank" width="320" height="160"></canvas></div>
+      <div><div class="l">${p.priceHistTriple ? 'カート価格' : '新品最安'}推移(90日)</div><canvas id="cPrice" width="320" height="160"></canvas></div>
+    </div>
+    <div class="links">
+      <a href="https://www.amazon.co.jp/dp/${esc(p.asin)}" target="_blank" rel="noopener">Amazon</a>
+      <a href="https://keepa.com/#!product/5-${esc(p.asin)}" target="_blank" rel="noopener">Keepa</a>
+      <a href="https://jp.mercari.com/search?keyword=${q}" target="_blank" rel="noopener">メルカリ</a>
+      <a href="https://search.rakuten.co.jp/search/mall/${q}/" target="_blank" rel="noopener">楽天</a>
+      <a href="https://shopping.yahoo.co.jp/search?p=${q}" target="_blank" rel="noopener">Yahoo</a>
+      <button id="btnGraph">Keepaグラフ(1token)</button>
+      <button id="btnCopyAsin">ASINコピー</button>
+    </div>
+    <div id="graphBox"></div>
+  </div>
+  <div class="card">
+    <h2>利益計算</h2>
+    <div class="calc">
+      <label><span>仕入れ値 円</span><input id="cCost" type="number" inputmode="numeric" min="0" step="1" value="${esc(cost)}" placeholder="0"></label>
+      <label><span>販売価格 円</span><input id="cSell" type="number" inputmode="numeric" min="0" step="1" value="${sell}"></label>
+      <label><span>販売手数料 % ${p.refPct != null ? '<small>(Keepa)</small>' : '<small>(初期値)</small>'}</span><input id="cRef" type="number" inputmode="decimal" min="0" max="100" step="0.5" value="${refPct}"></label>
+      <label><span>FBA配送代行 円 ${p.fbaFee != null ? '<small>(Keepa)</small>' : '<small>(初期値)</small>'}</span><input id="cFba" type="number" inputmode="numeric" min="0" step="1" value="${fbaFee}"></label>
+      <label><span>その他コスト 円</span><input id="cOther" type="number" inputmode="numeric" min="0" step="1" value="${settings.other}"></label>
+      <label class="toggle" style="align-self:end"><input id="cTax" type="checkbox" ${settings.tax ? 'checked' : ''}> 手数料に消費税10%</label>
+    </div>
+    <div class="result">
+      <div class="stat"><div class="l">利益</div><div class="v profit-big" id="rProfit">-</div></div>
+      <div class="stat"><div class="l">利益率</div><div class="v" id="rMargin">-</div></div>
+      <div class="stat"><div class="l">ROI(仕入れ比)</div><div class="v" id="rRoi">-</div></div>
+      <div class="stat full" style="grid-column:1/-1"><div class="l">目標利益率 ${settings.target}% の損益分岐仕入れ値 / 手数料合計</div><div class="v" id="rBreak">-</div></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary grow" id="btnSave">${saved ? 'リストを更新' : 'リストに保存'}</button>
+      <select id="cStatus" style="width:auto">${STATUSES.map(s => '<option' + ((saved && saved.status === s) ? ' selected' : '') + '>' + s + '</option>').join('')}</select>
+    </div>
+    <label style="display:block;margin-top:8px"><span class="muted">メモ</span><input id="cMemo" type="text" value="${esc(saved ? saved.memo : '')}" placeholder="仕入れ先・数量など"></label>
+  </div>`;
+  drawSpark($('cRank'), p.rankHist, false, true);
+  drawSpark($('cPrice'), p.priceHist, p.priceHistTriple, false);
+  ['cCost','cSell','cRef','cFba','cOther','cTax'].forEach(id => $(id).addEventListener('input', recalc));
+  recalc();
+  $('btnSave').addEventListener('click', saveCurrent);
+  $('btnCopyAsin').addEventListener('click', () => copyText(p.asin, $('btnCopyAsin')));
+  $('btnGraph').addEventListener('click', () => {
+    const u = keepaUrl('graphimage', { asin: p.asin, salesrank: 1, bb: 1, amazon: 1, new: 1, fba: 1, range: 90, width: 700, height: 300 });
+    $('graphBox').innerHTML = '<img src="' + esc(u) + '" alt="Keepaグラフ" style="width:100%;margin-top:10px;border-radius:8px;background:#fff">';
+    $('btnGraph').disabled = true;
+  });
+  $('cCost').focus({ preventScroll: true });
+}
+function readCalc(){
+  return {
+    sell: +$('cSell').value || 0, cost: +$('cCost').value || 0, refPct: +$('cRef').value || 0,
+    fbaFee: +$('cFba').value || 0, other: +$('cOther').value || 0, tax: $('cTax').checked
+  };
+}
+function recalc(){
+  const o = readCalc(); const r = calcProfit(o);
+  const el = $('rProfit');
+  el.textContent = yen(r.profit);
+  el.style.color = o.cost > 0 ? (r.profit >= 0 ? 'var(--good)' : 'var(--bad)') : '';
+  $('rMargin').textContent = pct(r.margin);
+  $('rRoi').textContent = o.cost > 0 ? pct(r.roi) : '-';
+  $('rBreak').textContent = yen(Math.max(0, r.breakEven(settings.target))) + ' / 手数料 ' + yen(r.fees);
+}
+function saveCurrent(){
+  if (!current) return;
+  const o = readCalc(); const r = calcProfit(o);
+  const row = {
+    asin: current.asin, title: current.title, img: current.img, jan: current.jan,
+    cost: o.cost, sell: o.sell, refPct: o.refPct, fbaFee: o.fbaFee, other: o.other, tax: o.tax,
+    profit: Math.round(r.profit), rank: current.rank, drops30: current.drops30,
+    bb: current.bb, status: $('cStatus').value, memo: $('cMemo').value,
+    updated: Date.now(), added: Date.now()
+  };
+  const i = list.findIndex(x => x.asin === row.asin);
+  if (i >= 0) { row.added = list[i].added; list[i] = row; } else list.unshift(row);
+  LS.set('list', list);
+  $('btnSave').textContent = '保存しました';
+  setTimeout(() => { if ($('btnSave')) $('btnSave').textContent = 'リストを更新'; }, 1200);
+  renderList();
+}
+
+// 簡易チャート(Keepa csv: [time,value,...] 時刻はKeepa分)
+function drawSpark(cv, arr, triple, invert){
+  const ctx = cv.getContext('2d'); const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const cs = getComputedStyle(document.documentElement);
+  const line = cs.getPropertyValue('--accent').trim(), grid = cs.getPropertyValue('--line').trim(), txt = cs.getPropertyValue('--muted').trim();
+  if (!arr || arr.length < 2){ ctx.fillStyle = txt; ctx.font = '22px sans-serif'; ctx.fillText('データなし', 12, H / 2 + 8); return; }
+  const step = triple ? 3 : 2, pts = [];
+  const since = Date.now() - 90 * 86400000;
+  let last = null;
+  for (let i = 0; i < arr.length; i += step){
+    const t = kt(arr[i]); let v = arr[i + 1];
+    if (triple && v >= 0 && arr[i + 2] > 0) v += arr[i + 2];
+    if (v < 0) v = null;
+    if (t >= since) pts.push([t, v]); else last = [since, v];
+  }
+  if (last) pts.unshift(last);
+  const vals = pts.map(p => p[1]).filter(v => v != null);
+  if (!vals.length){ ctx.fillStyle = txt; ctx.font = '22px sans-serif'; ctx.fillText('データなし', 12, H / 2 + 8); return; }
+  let lo = Math.min(...vals), hi = Math.max(...vals); if (hi === lo) { hi += 1; lo -= 1; }
+  const pad = 6, x = t => pad + (t - since) / (Date.now() - since) * (W - pad * 2);
+  const y = v => { const r = (v - lo) / (hi - lo); return invert ? pad + r * (H - pad * 2) : H - pad - r * (H - pad * 2); };
+  ctx.strokeStyle = grid; ctx.lineWidth = 1;
+  [0.25, 0.5, 0.75].forEach(f => { ctx.beginPath(); ctx.moveTo(0, H * f); ctx.lineTo(W, H * f); ctx.stroke(); });
+  ctx.strokeStyle = line; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
+  let prev = null; let started = false;
+  pts.push([Date.now(), pts[pts.length - 1][1]]);
+  pts.forEach(([t, v]) => {
+    if (v == null){ return; }
+    if (!started){ ctx.moveTo(x(t), y(v)); started = true; }
+    else { ctx.lineTo(x(t), y(prev)); ctx.lineTo(x(t), y(v)); }   // 階段状(Keepaと同じ)
+    prev = v;
+  });
+  ctx.stroke();
+  ctx.font = '20px sans-serif';
+  const fmt = v => invert ? num(v) : yen(v);
+  const label = (text, yy) => {   // 線と重なっても読めるように下地を敷く
+    const w = ctx.measureText(text).width;
+    ctx.fillStyle = cs.getPropertyValue('--bg').trim(); ctx.globalAlpha = .85; ctx.fillRect(4, yy - 18, w + 8, 24); ctx.globalAlpha = 1;
+    ctx.fillStyle = txt; ctx.fillText(text, 8, yy);
+  };
+  label(fmt(invert ? lo : hi), 22); label(fmt(invert ? hi : lo), H - 8);
+}
+
+// ====== 履歴 ======
+function pushHist(p){
+  hist = hist.filter(h => h.asin !== p.asin);
+  hist.unshift({ asin: p.asin, title: p.title, bb: p.bb, rank: p.rank, t: Date.now() });
+  hist = hist.slice(0, 40); LS.set('hist', hist); renderHist();
+}
+function renderHist(){
+  $('histCard').classList.toggle('hidden', !hist.length);
+  $('hist').innerHTML = hist.map(h => `<button data-asin="${esc(h.asin)}"><b>${esc(h.title).slice(0, 48)}</b><br><span class="muted">${esc(h.asin)} · ${yen(h.bb)} · ランク ${num(h.rank)}</span></button>`).join('');
+  $('hist').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { $('q').value = b.dataset.asin; lookup(b.dataset.asin); window.scrollTo({ top: 0 }); }));
+}
+
+// ====== リスト ======
+function renderList(){
+  const n = list.length; $('listCnt').textContent = n; $('listCnt').classList.toggle('hidden', !n);
+  $('statusChips').innerHTML = ['all'].concat(STATUSES).map(s => `<button class="${s === statusFilter ? 'active' : ''}" data-s="${s}">${s === 'all' ? 'すべて' : s} <small>${s === 'all' ? n : list.filter(x => x.status === s).length}</small></button>`).join('');
+  $('statusChips').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { statusFilter = b.dataset.s; renderList(); }));
+  const rows = statusFilter === 'all' ? list : list.filter(x => x.status === statusFilter);
+  const totCost = rows.reduce((a, x) => a + (x.cost || 0), 0), totProfit = rows.reduce((a, x) => a + (x.profit || 0), 0), totSell = rows.reduce((a, x) => a + (x.sell || 0), 0);
+  $('listSummary').innerHTML = `
+    <div class="stat"><div class="l">件数</div><div class="v">${rows.length}</div></div>
+    <div class="stat"><div class="l">仕入れ合計</div><div class="v">${yen(totCost)}</div></div>
+    <div class="stat ${totProfit >= 0 ? 'good' : 'bad'}"><div class="l">見込み利益</div><div class="v">${yen(totProfit)}</div><div class="s">売上 ${yen(totSell)}</div></div>`;
+  if (!rows.length){ $('list').innerHTML = '<div class="muted">まだありません。リサーチで商品を調べて「リストに保存」を押すとここに入ります。</div>'; return; }
+  $('list').innerHTML = rows.map(x => `
+    <div class="item" data-asin="${esc(x.asin)}">
+      <img src="${esc(x.img)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+      <div>
+        <div class="t">${esc(x.title)}</div>
+        <div class="m">仕入 ${yen(x.cost)} → 販売 ${yen(x.sell)}${x.bb != null && x.bb !== x.sell ? ' (現在カート ' + yen(x.bb) + ')' : ''}</div>
+        <div class="m">ランク ${num(x.rank)} · 30日 ${x.drops30 != null ? x.drops30 + '回' : '-'}${x.memo ? ' · ' + esc(x.memo) : ''}</div>
+        <div class="ops">
+          <select class="st" aria-label="状態">${STATUSES.map(s => '<option' + (s === x.status ? ' selected' : '') + '>' + s + '</option>').join('')}</select>
+          <button class="small open">開く</button>
+          <button class="small refresh">価格更新</button>
+          <button class="small del">削除</button>
+        </div>
+      </div>
+      <div class="p ${x.profit >= 0 ? 'good' : 'bad'}">${yen(x.profit)}<div class="m">${x.sell ? pct(x.profit / x.sell) : ''}</div></div>
+    </div>`).join('');
+  $('list').querySelectorAll('.item').forEach(el => {
+    const asin = el.dataset.asin, row = list.find(x => x.asin === asin);
+    el.querySelector('.st').addEventListener('change', e => { row.status = e.target.value; row.updated = Date.now(); LS.set('list', list); renderList(); });
+    el.querySelector('.open').addEventListener('click', () => { switchTab('research'); $('q').value = asin; lookup(asin); });
+    el.querySelector('.del').addEventListener('click', () => {
+      const b = el.querySelector('.del');
+      if (b.dataset.arm){ list = list.filter(x => x.asin !== asin); LS.set('list', list); renderList(); }
+      else { b.dataset.arm = '1'; b.textContent = '本当に削除'; b.style.color = 'var(--bad)'; setTimeout(() => { if (b.isConnected){ delete b.dataset.arm; b.textContent = '削除'; b.style.color = ''; } }, 2500); }
+    });
+    el.querySelector('.refresh').addEventListener('click', () => refreshRows([row]));
+  });
+}
+async function refreshRows(rows){
+  if (!rows.length) return;
+  showMsg('');
+  const btn = $('btnRefreshAll'); btn.disabled = true; btn.textContent = '更新中…';
+  try {
+    for (let i = 0; i < rows.length; i += 100){
+      const chunk = rows.slice(i, i + 100);
+      const data = await keepa('product', { asin: chunk.map(r => r.asin).join(','), stats: 90 });
+      (data.products || []).forEach(p => {
+        const q = parseProduct(p), row = list.find(x => x.asin === q.asin); if (!row) return;
+        row.bb = q.bb; row.rank = q.rank; row.drops30 = q.drops30;
+        const sell = q.bb != null ? q.bb : (q.fba != null ? q.fba : q.newest);
+        if (sell != null && row.status !== '売却済'){
+          row.sell = sell;
+          row.profit = Math.round(calcProfit({ sell, cost: row.cost || 0, refPct: row.refPct, fbaFee: row.fbaFee, other: row.other || 0, tax: row.tax }).profit);
+        }
+        row.updated = Date.now();
+      });
+    }
+    LS.set('list', list); renderList();
+  } catch (e) { switchTab('research'); showMsg(e.message, 'err'); }
+  btn.disabled = false; btn.textContent = '全件 価格更新';
+}
+function toCsv(){
+  const head = ['ASIN','JAN','商品名','状態','仕入れ値','販売価格','利益','利益率','ランキング','30日販売回数','メモ','更新日'];
+  const q = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
+  return [head.join(',')].concat(list.map(x => [x.asin, x.jan, x.title, x.status, x.cost, x.sell, x.profit, x.sell ? (x.profit / x.sell * 100).toFixed(1) + '%' : '', x.rank, x.drops30, x.memo, new Date(x.updated).toLocaleString('ja-JP')].map(q).join(','))).join('\r\n');
+}
+async function copyText(text, btn){
+  const orig = btn ? btn.textContent : '';
+  try { await navigator.clipboard.writeText(text); if (btn) btn.textContent = 'コピーしました'; }
+  catch (e) { $('importBox').value = text; $('exportCard').classList.remove('hidden'); $('importBox').select(); if (btn) btn.textContent = '下の欄を長押しでコピー'; }
+  if (btn) setTimeout(() => { btn.textContent = orig; }, 1500);
+}
+
+// ====== バーコード ======
+let scanning = false, zxReader = null, rafId = 0, stream = null;
+async function startScan(){
+  $('scanner').classList.remove('hidden'); $('scanMsg').textContent = 'カメラを起動中…';
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    $('scanMsg').textContent = 'このブラウザ/URLではカメラが使えません(httpsが必要)。「写真から読む」を使ってください。'; return;
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  } catch (e) { $('scanMsg').textContent = 'カメラを使えませんでした: ' + e.message; return; }
+  const v = $('video'); v.srcObject = stream; await v.play().catch(() => {});
+  scanning = true; $('scanMsg').textContent = 'バーコードを枠に合わせてください';
+  if ('BarcodeDetector' in window){
+    let det;
+    try { det = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] }); } catch (e) { det = null; }
+    if (det){
+      const tick = async () => {
+        if (!scanning) return;
+        try { const codes = await det.detect(v); if (codes.length) return onScanned(codes[0].rawValue); } catch (e) {}
+        rafId = setTimeout(tick, 150);
+      };
+      tick(); return;
+    }
+  }
+  if (window.ZXing){
+    zxReader = new ZXing.BrowserMultiFormatReader();
+    try {
+      await zxReader.decodeFromStream(stream, v, (res, err) => { if (res && scanning) onScanned(res.getText()); });
+    } catch (e) { $('scanMsg').textContent = '読み取り開始に失敗: ' + e.message; }
+    return;
+  }
+  $('scanMsg').textContent = '読み取りライブラリを読み込めませんでした。「写真から読む」または手入力を使ってください。';
+}
+function stopScan(){
+  scanning = false; clearTimeout(rafId);
+  if (zxReader){ try { zxReader.reset(); } catch (e) {} zxReader = null; }
+  if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+  $('video').srcObject = null; $('scanner').classList.add('hidden');
+}
+function onScanned(code){
+  if (!scanning) return;
+  stopScan();
+  if (navigator.vibrate) navigator.vibrate(60);
+  $('q').value = code; lookup(code);
+}
+async function scanPhoto(file){
+  if (!file) return;
+  showMsg('写真からバーコードを読み取り中…', 'info');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = url; await img.decode();
+    let code = null;
+    if ('BarcodeDetector' in window){
+      try { const det = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] }); const r = await det.detect(img); if (r.length) code = r[0].rawValue; } catch (e) {}
+    }
+    if (!code && window.ZXing){
+      try { const r = await new ZXing.BrowserMultiFormatReader().decodeFromImageElement(img); code = r.getText(); } catch (e) {}
+    }
+    if (!code) return showMsg('バーコードを読み取れませんでした。明るい場所で、バーコードが画面の幅いっぱいになるように撮ってください。', 'warn');
+    $('q').value = code; lookup(code);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+// ====== 設定 ======
+function loadSettingsUI(){
+  $('setKey').value = settings.key; $('setMode').value = settings.mode; $('setProxy').value = settings.proxy;
+  $('setRef').value = settings.ref; $('setFba').value = settings.fba; $('setOther').value = settings.other; $('setTarget').value = settings.target; $('setTax').checked = !!settings.tax;
+  $('proxyRow').classList.toggle('hidden', settings.mode !== 'proxy');
+  $('modeChip').textContent = !settings.key ? 'キー未設定' : settings.mode === 'proxy' ? '中継' : '直接';
+}
+function saveSettingsUI(){
+  settings = {
+    key: $('setKey').value.trim(), mode: $('setMode').value, proxy: $('setProxy').value.trim(),
+    ref: +$('setRef').value || 0, fba: +$('setFba').value || 0, other: +$('setOther').value || 0,
+    target: +$('setTarget').value || 0, tax: $('setTax').checked
+  };
+  LS.set('settings', settings); loadSettingsUI();
+}
+['setKey','setMode','setProxy','setRef','setFba','setOther','setTarget','setTax'].forEach(id => $(id).addEventListener('change', saveSettingsUI));
+$('btnTestKey').addEventListener('click', async () => {
+  saveSettingsUI(); $('testMsg').textContent = '確認中…';
+  try { const d = await keepa('token', {}); $('testMsg').textContent = 'OK。トークン残 ' + d.tokensLeft + '(毎分 +' + d.refillRate + ')'; }
+  catch (e) { $('testMsg').textContent = e.message; }
+});
+$('btnClearHist').addEventListener('click', () => { hist = []; LS.set('hist', hist); renderHist(); });
+$('btnClearAll').addEventListener('click', e => {
+  const b = e.currentTarget;
+  if (b.dataset.arm){ list = []; LS.set('list', list); renderList(); delete b.dataset.arm; b.textContent = 'リストを全消去'; }
+  else { b.dataset.arm = '1'; b.textContent = '本当に全消去する'; setTimeout(() => { delete b.dataset.arm; b.textContent = 'リストを全消去'; }, 3000); }
+});
+
+// ====== タブ・イベント ======
+function switchTab(name){
+  document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
+  document.querySelectorAll('nav.bottom button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  if (name !== 'research') stopScan();
+  try { location.hash = name; } catch (e) {}
+}
+document.querySelectorAll('nav.bottom button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+$('btnSearch').addEventListener('click', () => lookup($('q').value));
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); lookup($('q').value); $('q').blur(); } });
+$('btnScan').addEventListener('click', () => scanning ? stopScan() : startScan());
+$('btnScanStop').addEventListener('click', stopScan);
+$('photoIn').addEventListener('change', e => { scanPhoto(e.target.files[0]); e.target.value = ''; });
+$('btnRefreshAll').addEventListener('click', () => refreshRows(statusFilter === 'all' ? list : list.filter(x => x.status === statusFilter)));
+$('btnExport').addEventListener('click', () => $('exportCard').classList.toggle('hidden'));
+$('btnExportClose').addEventListener('click', () => $('exportCard').classList.add('hidden'));
+$('btnCopyCsv').addEventListener('click', e => copyText(toCsv(), e.currentTarget));
+$('btnCopyJson').addEventListener('click', e => copyText(JSON.stringify(list, null, 1), e.currentTarget));
+$('btnDownloadCsv').addEventListener('click', () => {
+  const blob = new Blob(['﻿' + toCsv()], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sedori_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+});
+$('btnImport').addEventListener('click', () => {
+  try {
+    const arr = JSON.parse($('importBox').value); if (!Array.isArray(arr)) throw new Error('配列ではありません');
+    let added = 0, updated = 0;
+    arr.forEach(r => { if (!r || !r.asin) return; const i = list.findIndex(x => x.asin === r.asin); if (i >= 0){ list[i] = Object.assign(list[i], r); updated++; } else { list.push(r); added++; } });
+    LS.set('list', list); renderList(); $('importBox').value = '追加 ' + added + '件 / 上書き ' + updated + '件';
+  } catch (e) { $('importBox').value = '読み込めませんでした: ' + e.message + '\n\n' + $('importBox').value; }
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopScan(); });
+
+// 初期化
+loadSettingsUI(); renderHist(); renderList();
+const h = (location.hash || '').replace('#', ''); if (['list', 'settings'].includes(h)) switchTab(h);
+if (!settings.key) showMsg('最初に「設定」タブでKeepaのAPIキーを入力してください。', 'info');
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

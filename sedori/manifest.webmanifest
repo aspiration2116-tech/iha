@@ -1,0 +1,17 @@
+{
+  "name": "せどり仕入れツール",
+  "short_name": "せどり",
+  "description": "バーコードを読んでAmazonの価格・ランキング・利益をその場で確認する仕入れツール(Keepa API)",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f5f8",
+  "theme_color": "#1f3a5f",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

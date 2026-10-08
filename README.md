@@ -80,3 +80,30 @@
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.user.youtube-research.plist ~/Library/LaunchAgents/com.user.youtube-research-server.plist
 ```
+
+## せどり仕入れツール(`sedori/`)
+
+バーコードを読んで Amazon.co.jp の価格・ランキング・売れ行き・利益をその場で確認する、スマホ向けのWebアプリ(PWA)。データは [Keepa API](https://keepa.com/#!api)(有料・APIキーが必要)から取得する。
+
+できること
+
+- JAN(バーコード)/ ASIN / 商品名で検索。カメラでバーコードを読む、または写真から読む
+- カート価格・Amazon本体・新品/FBA/中古の最安・90日平均・ランキング(現在/30日/90日)・30日/90日に売れた回数・月間販売数・出品者数(FBA/自己発送)
+- 利益計算(販売手数料・FBA配送代行・消費税・その他コスト)、利益率、ROI、目標利益率での損益分岐仕入れ値
+- 仕入れリスト(候補 / 仕入済 / 出品中 / 売却済)、保存した商品のカート価格を一括更新、CSV/JSON書き出し・読み込み
+- Amazon / Keepa / メルカリ / 楽天 / Yahoo へのリンク
+
+### スマホで使う(おすすめ: GitHub Pages)
+
+1. GitHubのこのリポジトリ → Settings → Pages → 「Deploy from a branch」でブランチとフォルダ `/ (root)` を選んで保存
+2. スマホで `https://<ユーザー名>.github.io/<リポジトリ名>/sedori/` を開く
+3. 「設定」タブでKeepaのAPIキーを入力 → 「接続テスト」
+4. ブラウザのメニューから「ホーム画面に追加」するとアプリのように使える(https配信なのでカメラ読み取りも使える)
+
+### Macで配信して同じWi-Fiのスマホから使う
+
+`せどり.command` をダブルクリック(= `python3 sedori/keepa_proxy.py`)。表示される `http://<MacのIP>:8771` をスマホで開く。
+ブラウザから直接Keepaに接続できない場合は、アプリの設定で「中継サーバー経由」を選び、このURLを入力する。
+http配信ではカメラのライブ読み取りが使えないので、「写真から読む」か手入力を使う。
+
+APIキーとリストはスマホのブラウザ内にだけ保存される。機種変更の前に「リスト → 書き出し」でJSONを控えること。
