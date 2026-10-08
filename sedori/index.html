@@ -59,7 +59,7 @@ nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--car
 nav.bottom button{flex:1;border:0;border-radius:0;background:transparent;padding:9px 4px 7px;color:var(--muted);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
 nav.bottom button .ico{font-size:20px;line-height:1}
 nav.bottom button.active{color:var(--accent);font-weight:700}
-nav.bottom button .cnt{position:absolute;margin-left:34px;margin-top:-2px;background:var(--bad);color:#fff;font-size:10px;border-radius:999px;padding:0 5px;min-width:16px}
+nav.bottom button .cnt{position:absolute;margin-left:30px;margin-top:-2px;background:var(--bad);color:#fff;font-size:10px;border-radius:999px;padding:0 5px;min-width:16px}
 
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
 .card h2{margin:0 0 8px;font-size:14px;color:var(--muted);font-weight:600;letter-spacing:.04em}
@@ -126,6 +126,23 @@ nav.bottom button .cnt{position:absolute;margin-left:34px;margin-top:-2px;backgr
 .hist button{display:block;width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;padding:8px 0;font-size:13px}
 .hist button:first-child{border-top:0}
 textarea{font-family:var(--mono);font-size:12px;min-height:90px}
+/* 在庫・売上 */
+.rep{display:grid;grid-template-columns:48px 1fr;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.rep:first-of-type{border-top:0}
+.rep img{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:6px;border:1px solid var(--line)}
+.rep .t{font-size:13px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rep .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;font-size:12px}
+.rep .grid label{display:block;color:var(--muted)}
+.rep .grid input{padding:5px 7px;font-size:13px}
+.rep .grid .v{font-weight:700;font-variant-numeric:tabular-nums;font-size:14px;padding-top:2px}
+.rep .ops{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center}
+.badge{font-size:11px;padding:1px 6px;border-radius:4px;font-weight:600}
+.badge.bad{background:var(--bad-soft);color:var(--bad)} .badge.good{background:var(--good-soft);color:var(--good)} .badge.warn{background:var(--warn-soft);color:var(--warn)}
+table.sales{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+table.sales th,table.sales td{padding:6px 4px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+table.sales th{color:var(--muted);font-weight:600;font-size:12px}
+table.sales th:first-child,table.sales td:first-child{text-align:left}
+.tblwrap{overflow-x:auto}
 .setting{margin-bottom:12px}
 .setting label{display:block;font-size:13px;font-weight:600;margin-bottom:3px}
 .setting .help{font-size:12px;color:var(--muted);margin-top:3px}
@@ -202,6 +219,38 @@ textarea{font-family:var(--mono);font-size:12px;min-height:90px}
   </div>
 </section>
 
+<!-- ====== 在庫・売上 ====== -->
+<section class="tab" id="tab-stock">
+  <div class="summary" id="stockSummary"></div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+      <h2 style="margin:0">価格改定(出品中)</h2>
+      <button class="small" id="btnRepRefresh">カート価格を取得</button>
+    </div>
+    <div class="row" style="margin-bottom:8px;gap:6px">
+      <select id="repRule" style="width:auto;flex:1">
+        <option value="bb">カート価格に合わせる</option>
+        <option value="bb1">カート価格 −1円</option>
+        <option value="bb10">カート価格 −10円</option>
+        <option value="keep">現在の価格を維持</option>
+      </select>
+      <label class="toggle" style="white-space:nowrap"><input id="repFloor" type="checkbox" checked> 目標利益率を下回らない</label>
+    </div>
+    <div id="repList"></div>
+    <div class="row" style="margin-top:8px"><button class="primary grow" id="btnRepApplyAll">提案価格をすべて採用</button></div>
+    <div class="help muted" style="margin-top:6px">ここで決めた価格は、このアプリの記録です。Amazonの出品価格はセラーセントラル(またはSellerアプリ)で変更してください。</div>
+  </div>
+  <div class="card">
+    <h2>在庫(仕入済・出品中)</h2>
+    <div id="stockList"></div>
+  </div>
+  <div class="card">
+    <h2>売上(売却済)</h2>
+    <div class="tblwrap"><table class="sales" id="salesTable"></table></div>
+    <div id="salesList" style="margin-top:8px"></div>
+  </div>
+</section>
+
 <!-- ====== 設定 ====== -->
 <section class="tab" id="tab-settings">
   <div class="card">
@@ -253,6 +302,7 @@ textarea{font-family:var(--mono);font-size:12px;min-height:90px}
 <nav class="bottom">
   <button data-tab="research" class="active"><span class="ico">🔍</span>リサーチ</button>
   <button data-tab="list"><span class="ico">📦</span>リスト<span class="cnt hidden" id="listCnt"></span></button>
+  <button data-tab="stock"><span class="ico">💹</span>在庫・売上</button>
   <button data-tab="settings"><span class="ico">⚙️</span>設定</button>
 </nav>
 
@@ -479,6 +529,7 @@ function showProduct(p, scannedJan){
     <div class="row" style="margin-top:10px">
       <button class="primary grow" id="btnSave">${saved ? 'リストを更新' : 'リストに保存'}</button>
       <select id="cStatus" style="width:auto">${STATUSES.map(s => '<option' + ((saved && saved.status === s) ? ' selected' : '') + '>' + s + '</option>').join('')}</select>
+      <label style="width:84px;font-size:12px;color:var(--muted)">数量<input id="cQty" type="number" inputmode="numeric" min="1" step="1" value="${saved && saved.qty ? saved.qty : 1}" style="padding:6px 8px"></label>
     </div>
     <label style="display:block;margin-top:8px"><span class="muted">メモ</span><input id="cMemo" type="text" value="${esc(saved ? saved.memo : '')}" placeholder="仕入れ先・数量など"></label>
   </div>`;
@@ -518,10 +569,12 @@ function saveCurrent(){
     cost: o.cost, sell: o.sell, refPct: o.refPct, fbaFee: o.fbaFee, other: o.other, tax: o.tax,
     profit: Math.round(r.profit), rank: current.rank, drops30: current.drops30,
     bb: current.bb, status: $('cStatus').value, memo: $('cMemo').value,
+    qty: Math.max(1, +$('cQty').value || 1), listPrice: o.sell,
     updated: Date.now(), added: Date.now()
   };
   const i = list.findIndex(x => x.asin === row.asin);
-  if (i >= 0) { row.added = list[i].added; list[i] = row; } else list.unshift(row);
+  if (i >= 0) { const old = list[i]; row.added = old.added; row.soldPrice = old.soldPrice; row.soldDate = old.soldDate; if (old.listPrice && old.status === row.status) row.listPrice = old.listPrice; list[i] = row; } else list.unshift(row);
+  if (row.status === '売却済') markSold(row);
   LS.set('list', list);
   $('btnSave').textContent = '保存しました';
   setTimeout(() => { if ($('btnSave')) $('btnSave').textContent = 'リストを更新'; }, 1200);
@@ -586,6 +639,7 @@ function renderHist(){
 
 // ====== リスト ======
 function renderList(){
+  if ($('stockSummary')) renderStock();
   const n = list.length; $('listCnt').textContent = n; $('listCnt').classList.toggle('hidden', !n);
   $('statusChips').innerHTML = ['all'].concat(STATUSES).map(s => `<button class="${s === statusFilter ? 'active' : ''}" data-s="${s}">${s === 'all' ? 'すべて' : s} <small>${s === 'all' ? n : list.filter(x => x.status === s).length}</small></button>`).join('');
   $('statusChips').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { statusFilter = b.dataset.s; renderList(); }));
@@ -601,7 +655,7 @@ function renderList(){
       <img src="${esc(x.img)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
       <div>
         <div class="t">${esc(x.title)}</div>
-        <div class="m">仕入 ${yen(x.cost)} → 販売 ${yen(x.sell)}${x.bb != null && x.bb !== x.sell ? ' (現在カート ' + yen(x.bb) + ')' : ''}</div>
+        <div class="m">仕入 ${yen(x.cost)}${x.qty > 1 ? ' ×' + x.qty : ''} → ${x.status === '売却済' ? '売却 ' + yen(x.soldPrice) : '販売 ' + yen(x.listPrice || x.sell)}${x.bb != null && x.bb !== (x.listPrice || x.sell) ? ' (カート ' + yen(x.bb) + ')' : ''}</div>
         <div class="m">ランク ${num(x.rank)} · 30日 ${x.drops30 != null ? x.drops30 + '回' : '-'}${x.memo ? ' · ' + esc(x.memo) : ''}</div>
         <div class="ops">
           <select class="st" aria-label="状態">${STATUSES.map(s => '<option' + (s === x.status ? ' selected' : '') + '>' + s + '</option>').join('')}</select>
@@ -614,7 +668,7 @@ function renderList(){
     </div>`).join('');
   $('list').querySelectorAll('.item').forEach(el => {
     const asin = el.dataset.asin, row = list.find(x => x.asin === asin);
-    el.querySelector('.st').addEventListener('change', e => { row.status = e.target.value; row.updated = Date.now(); LS.set('list', list); renderList(); });
+    el.querySelector('.st').addEventListener('change', e => { row.status = e.target.value; if (row.status === '売却済') markSold(row); row.updated = Date.now(); LS.set('list', list); renderList(); });
     el.querySelector('.open').addEventListener('click', () => { switchTab('research'); $('q').value = asin; lookup(asin); });
     el.querySelector('.del').addEventListener('click', () => {
       const b = el.querySelector('.del');
@@ -638,7 +692,8 @@ async function refreshRows(rows){
         const sell = q.bb != null ? q.bb : (q.fba != null ? q.fba : q.newest);
         if (sell != null && row.status !== '売却済'){
           row.sell = sell;
-          row.profit = Math.round(calcProfit({ sell, cost: row.cost || 0, refPct: row.refPct, fbaFee: row.fbaFee, other: row.other || 0, tax: row.tax }).profit);
+          if (row.status === '候補' || !row.listPrice) row.listPrice = sell;
+          row.profit = Math.round(profitAt(row, row.listPrice));
         }
         row.updated = Date.now();
       });
@@ -647,10 +702,123 @@ async function refreshRows(rows){
   } catch (e) { switchTab('research'); showMsg(e.message, 'err'); }
   btn.disabled = false; btn.textContent = '全件 価格更新';
 }
+
+// ====== 在庫・売上(プライスター風) ======
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+function feesAt(row, sell){ return calcProfit({ sell: sell || 0, cost: 0, refPct: row.refPct || 0, fbaFee: row.fbaFee || 0, other: 0, tax: row.tax !== false }).fees; }
+function profitAt(row, sell){ return calcProfit({ sell: sell || 0, cost: row.cost || 0, refPct: row.refPct || 0, fbaFee: row.fbaFee || 0, other: row.other || 0, tax: row.tax !== false }).profit; }
+// 目標利益率を守れる最低販売価格: sell*(1-t) - sell*ref*tax - fba*tax - other = cost
+function floorPrice(row){
+  const t = settings.target / 100, tax = row.tax !== false ? 1.1 : 1;
+  const den = 1 - t - (row.refPct || 0) / 100 * tax;
+  if (den <= 0) return null;
+  return Math.ceil(((row.cost || 0) + (row.fbaFee || 0) * tax + (row.other || 0)) / den);
+}
+function markSold(row){
+  if (!row.soldPrice) row.soldPrice = row.listPrice || row.sell || 0;
+  if (!row.soldDate) row.soldDate = today();
+}
+function suggestPrice(row){
+  const rule = $('repRule').value, floor = $('repFloor').checked ? floorPrice(row) : null;
+  let p = row.listPrice || row.sell || 0;
+  if (rule !== 'keep' && row.bb != null){ p = rule === 'bb1' ? row.bb - 1 : rule === 'bb10' ? row.bb - 10 : row.bb; }
+  let floored = false;
+  if (floor != null && p < floor){ p = floor; floored = true; }
+  return { price: Math.max(0, Math.round(p)), floored, floor };
+}
+function renderStock(){
+  const stock = list.filter(x => x.status === '仕入済' || x.status === '出品中');
+  const listed = list.filter(x => x.status === '出品中');
+  const sold = list.filter(x => x.status === '売却済');
+  const units = stock.reduce((a, x) => a + (x.qty || 1), 0);
+  const stockCost = stock.reduce((a, x) => a + (x.cost || 0) * (x.qty || 1), 0);
+  const ym = today().slice(0, 7);
+  const thisMonth = sold.filter(x => (x.soldDate || '').slice(0, 7) === ym);
+  const mRev = thisMonth.reduce((a, x) => a + (x.soldPrice || 0) * (x.qty || 1), 0);
+  const mProfit = thisMonth.reduce((a, x) => a + profitAt(x, x.soldPrice) * (x.qty || 1), 0);
+  $('stockSummary').innerHTML = `
+    <div class="stat"><div class="l">在庫</div><div class="v">${units}点</div><div class="s">仕入れ ${yen(stockCost)}</div></div>
+    <div class="stat"><div class="l">今月の売上</div><div class="v">${yen(mRev)}</div><div class="s">${thisMonth.length}件</div></div>
+    <div class="stat ${mProfit >= 0 ? 'good' : 'bad'}"><div class="l">今月の利益</div><div class="v">${yen(mProfit)}</div><div class="s">${mRev ? pct(mProfit / mRev) : '-'}</div></div>`;
+
+  // 価格改定
+  if (!listed.length){ $('repList').innerHTML = '<div class="muted">出品中の商品がありません。リストで状態を「出品中」にするとここに出ます。</div>'; }
+  else $('repList').innerHTML = listed.map(x => {
+    const sg = suggestPrice(x), cur = x.listPrice || x.sell || 0;
+    const diff = x.bb != null ? cur - x.bb : null;
+    const badge = x.bb == null ? '<span class="badge warn">カート価格なし</span>' : diff > 0 ? '<span class="badge bad">カートより ' + yen(diff) + ' 高い</span>' : diff < 0 ? '<span class="badge good">カートより ' + yen(-diff) + ' 安い</span>' : '<span class="badge good">カートと同じ</span>';
+    return `<div class="rep" data-asin="${esc(x.asin)}">
+      <img src="${esc(x.img)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+      <div>
+        <div class="t">${esc(x.title)}</div>
+        <div class="grid">
+          <label>自分の価格<input class="lp" type="number" inputmode="numeric" min="0" step="1" value="${cur}"></label>
+          <div><label>カート価格</label><div class="v">${yen(x.bb)}</div></div>
+          <div><label>提案${sg.floored ? '(下限)' : ''}</label><div class="v" style="color:var(--accent)">${yen(sg.price)}</div></div>
+        </div>
+        <div class="ops">${badge}<span class="muted" style="font-size:11px">利益 ${yen(profitAt(x, cur))} → ${yen(profitAt(x, sg.price))}${sg.floor != null ? ' · 下限 ' + yen(sg.floor) : ''}</span>
+          <button class="small adopt">提案を採用</button></div>
+      </div></div>`;
+  }).join('');
+  $('repList').querySelectorAll('.rep').forEach(el => {
+    const row = list.find(x => x.asin === el.dataset.asin);
+    el.querySelector('.lp').addEventListener('change', e => { row.listPrice = +e.target.value || 0; row.profit = Math.round(profitAt(row, row.listPrice)); row.updated = Date.now(); LS.set('list', list); renderStock(); renderList(); });
+    el.querySelector('.adopt').addEventListener('click', () => { row.listPrice = suggestPrice(row).price; row.profit = Math.round(profitAt(row, row.listPrice)); row.updated = Date.now(); LS.set('list', list); renderStock(); renderList(); });
+  });
+
+  // 在庫
+  $('stockList').innerHTML = stock.length ? stock.map(x => `<div class="rep" data-asin="${esc(x.asin)}">
+      <img src="${esc(x.img)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+      <div><div class="t">${esc(x.title)}</div>
+        <div class="grid">
+          <label>数量<input class="qty" type="number" inputmode="numeric" min="1" step="1" value="${x.qty || 1}"></label>
+          <div><label>仕入れ値</label><div class="v">${yen(x.cost)}</div></div>
+          <div><label>出品価格</label><div class="v">${yen(x.listPrice || x.sell)}</div></div>
+        </div>
+        <div class="ops"><span class="status">${esc(x.status)}</span><span class="muted" style="font-size:11px">見込み利益 ${yen(profitAt(x, x.listPrice || x.sell))}/点 · ランク ${num(x.rank)}</span>
+          <button class="small sold">売れた</button></div>
+      </div></div>`).join('') : '<div class="muted">在庫はありません。</div>';
+  $('stockList').querySelectorAll('.rep').forEach(el => {
+    const row = list.find(x => x.asin === el.dataset.asin);
+    el.querySelector('.qty').addEventListener('change', e => { row.qty = Math.max(1, +e.target.value || 1); LS.set('list', list); renderStock(); });
+    el.querySelector('.sold').addEventListener('click', () => { row.status = '売却済'; row.soldPrice = 0; row.soldDate = ''; markSold(row); row.updated = Date.now(); LS.set('list', list); renderStock(); renderList(); });
+  });
+
+  // 売上(月別)
+  const months = {};
+  sold.forEach(x => {
+    const k = (x.soldDate || '').slice(0, 7) || '日付なし'; const m = months[k] || (months[k] = { n: 0, rev: 0, cost: 0, fees: 0, profit: 0 });
+    const q = x.qty || 1; m.n += q; m.rev += (x.soldPrice || 0) * q; m.cost += (x.cost || 0) * q; m.fees += feesAt(x, x.soldPrice) * q; m.profit += profitAt(x, x.soldPrice) * q;
+  });
+  const keys = Object.keys(months).sort().reverse();
+  $('salesTable').innerHTML = keys.length ? '<tr><th>月</th><th>点数</th><th>売上</th><th>仕入れ</th><th>手数料</th><th>利益</th></tr>' +
+    keys.map(k => { const m = months[k]; return `<tr><td>${esc(k)}</td><td>${m.n}</td><td>${yen(m.rev)}</td><td>${yen(m.cost)}</td><td>${yen(m.fees)}</td><td style="color:${m.profit >= 0 ? 'var(--good)' : 'var(--bad)'};font-weight:700">${yen(m.profit)}</td></tr>`; }).join('')
+    : '<tr><td class="muted" style="border:0">売却済の商品はまだありません。在庫の「売れた」を押すか、リストで状態を「売却済」にしてください。</td></tr>';
+  $('salesList').innerHTML = sold.slice().sort((a, b) => (b.soldDate || '').localeCompare(a.soldDate || '')).map(x => `<div class="rep" data-asin="${esc(x.asin)}">
+      <img src="${esc(x.img)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+      <div><div class="t">${esc(x.title)}</div>
+        <div class="grid">
+          <label>売却価格<input class="sp" type="number" inputmode="numeric" min="0" step="1" value="${x.soldPrice || 0}"></label>
+          <label>売却日<input class="sd" type="date" value="${esc(x.soldDate || '')}"></label>
+          <div><label>利益(${x.qty || 1}点)</label><div class="v" style="color:${profitAt(x, x.soldPrice) >= 0 ? 'var(--good)' : 'var(--bad)'}">${yen(profitAt(x, x.soldPrice) * (x.qty || 1))}</div></div>
+        </div></div></div>`).join('');
+  $('salesList').querySelectorAll('.rep').forEach(el => {
+    const row = list.find(x => x.asin === el.dataset.asin);
+    el.querySelector('.sp').addEventListener('change', e => { row.soldPrice = +e.target.value || 0; row.profit = Math.round(profitAt(row, row.soldPrice)); LS.set('list', list); renderStock(); renderList(); });
+    el.querySelector('.sd').addEventListener('change', e => { row.soldDate = e.target.value; LS.set('list', list); renderStock(); });
+  });
+}
+$('repRule').addEventListener('change', renderStock);
+$('repFloor').addEventListener('change', renderStock);
+$('btnRepRefresh').addEventListener('click', async () => { await refreshRows(list.filter(x => x.status === '出品中')); renderStock(); });
+$('btnRepApplyAll').addEventListener('click', () => {
+  list.filter(x => x.status === '出品中').forEach(row => { row.listPrice = suggestPrice(row).price; row.profit = Math.round(profitAt(row, row.listPrice)); row.updated = Date.now(); });
+  LS.set('list', list); renderStock(); renderList();
+});
 function toCsv(){
-  const head = ['ASIN','JAN','商品名','状態','仕入れ値','販売価格','利益','利益率','ランキング','30日販売回数','メモ','更新日'];
+  const head = ['ASIN','JAN','商品名','状態','数量','仕入れ値','出品価格','売却価格','売却日','利益(1点)','利益率','ランキング','30日販売回数','メモ','更新日'];
   const q = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
-  return [head.join(',')].concat(list.map(x => [x.asin, x.jan, x.title, x.status, x.cost, x.sell, x.profit, x.sell ? (x.profit / x.sell * 100).toFixed(1) + '%' : '', x.rank, x.drops30, x.memo, new Date(x.updated).toLocaleString('ja-JP')].map(q).join(','))).join('\r\n');
+  return [head.join(',')].concat(list.map(x => [x.asin, x.jan, x.title, x.status, x.qty || 1, x.cost, x.listPrice || x.sell, x.soldPrice || '', x.soldDate || '', x.profit, (x.listPrice || x.sell) ? (x.profit / (x.listPrice || x.sell) * 100).toFixed(1) + '%' : '', x.rank, x.drops30, x.memo, new Date(x.updated).toLocaleString('ja-JP')].map(q).join(','))).join('\r\n');
 }
 async function copyText(text, btn){
   const orig = btn ? btn.textContent : '';
@@ -785,7 +953,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) stopS
 
 // 初期化
 loadSettingsUI(); renderHist(); renderList();
-const h = (location.hash || '').replace('#', ''); if (['list', 'settings'].includes(h)) switchTab(h);
+const h = (location.hash || '').replace('#', ''); if (['list', 'stock', 'settings'].includes(h)) switchTab(h);
 if (!settings.key) showMsg('最初に「設定」タブでKeepaのAPIキーを入力してください。', 'info');
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
   navigator.serviceWorker.register('sw.js').catch(() => {});

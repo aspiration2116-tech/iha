@@ -1,6 +1,6 @@
 // アプリ本体だけをキャッシュして、電波が弱くても画面が開くようにする。
 // Keepa API・画像は常にネットワーク。
-const CACHE = 'sedori-v1';
+const CACHE = 'sedori-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
