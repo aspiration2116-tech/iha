@@ -97,10 +97,13 @@ launchctl unload ~/Library/LaunchAgents/com.user.youtube-research.plist ~/Librar
 
 ### スマホで使う(おすすめ: GitHub Pages)
 
-1. GitHubのこのリポジトリ → Settings → Pages → 「Deploy from a branch」でブランチとフォルダ `/ (root)` を選んで保存
-2. スマホで `https://<ユーザー名>.github.io/<リポジトリ名>/sedori/` を開く
-3. 「設定」タブでKeepaのAPIキーを入力 → 「接続テスト」
-4. ブラウザのメニューから「ホーム画面に追加」するとアプリのように使える(https配信なのでカメラ読み取りも使える)
+`.github/workflows/pages.yml` が `sedori/` を GitHub Pages に自動配信する。最初の1回だけ、GitHub側で Pages を有効にする。
+
+1. GitHubのこのリポジトリ → Settings → Pages → 「Build and deployment」の Source を **GitHub Actions** にする
+2. Actions タブ → 「Deploy sedori to GitHub Pages」 → 「Run workflow」で実行(以後は `sedori/` を変更してプッシュするたびに自動で配信)
+3. スマホで `https://<ユーザー名>.github.io/<リポジトリ名>/` を開く
+4. 「設定」タブでKeepaのAPIキーを入力 → 「接続テスト」
+5. ブラウザのメニューから「ホーム画面に追加」するとアプリのように使える(https配信なのでカメラ読み取りも使える)
 
 ### Macで配信して同じWi-Fiのスマホから使う
 
