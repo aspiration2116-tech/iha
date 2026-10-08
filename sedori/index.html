@@ -793,7 +793,7 @@ function renderStock(){
   const keys = Object.keys(months).sort().reverse();
   $('salesTable').innerHTML = keys.length ? '<tr><th>月</th><th>点数</th><th>売上</th><th>仕入れ</th><th>手数料</th><th>利益</th></tr>' +
     keys.map(k => { const m = months[k]; return `<tr><td>${esc(k)}</td><td>${m.n}</td><td>${yen(m.rev)}</td><td>${yen(m.cost)}</td><td>${yen(m.fees)}</td><td style="color:${m.profit >= 0 ? 'var(--good)' : 'var(--bad)'};font-weight:700">${yen(m.profit)}</td></tr>`; }).join('')
-    : '<tr><td class="muted" style="border:0">売却済の商品はまだありません。在庫の「売れた」を押すか、リストで状態を「売却済」にしてください。</td></tr>';
+    : '<tr><td class="muted" style="border:0;white-space:normal;text-align:left">売却済の商品はまだありません。在庫の「売れた」を押すか、リストで状態を「売却済」にしてください。</td></tr>';
   $('salesList').innerHTML = sold.slice().sort((a, b) => (b.soldDate || '').localeCompare(a.soldDate || '')).map(x => `<div class="rep" data-asin="${esc(x.asin)}">
       <img src="${esc(x.img)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
       <div><div class="t">${esc(x.title)}</div>
